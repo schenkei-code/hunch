@@ -16,3 +16,4 @@ __pycache__/
 # private build-logs (enthalten persoenliche verifikations-daten)
 PROGRESS.md
 ROADMAP.md
+assets/_tmp.html

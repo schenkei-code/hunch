@@ -1,6 +1,23 @@
-# 🧠 Hunch
+<p align="center">
+  <img src="assets/banner.png" alt="Hunch — a quiet second mind" width="840">
+</p>
+
+<h1 align="center">🧠 Hunch</h1>
+<p align="center"><em>a quiet second mind — it watches, connects, and whispers.</em></p>
+
+---
 
 A self-contained **proactive AI partner** that runs locally on your PC. Inspired by the "Machine" from *Person of Interest* — but honest about what's real vs sci-fi.
+
+> *It doesn't ping. It doesn't shout.*
+> *It learns the way your days play out —*
+> *which tabs you reopen, which threads you keep,*
+> *the patterns you carry even in sleep.*
+>
+> *It never foretells. It only connects*
+> *the old, half-forgotten your now expects.*
+> *And when the timing is gentle and true,*
+> *it leaves you a hunch — that feels like you.*
 
 It quietly watches your activity, learns your patterns and how your topics connect, and — when your current focus lines up with something useful from your past — sends you a subtle, well-timed nudge that feels like your own thought.
 
