@@ -8,5 +8,10 @@
   "ingest_sources": {
     "_hinweis": "optional: pfade zu eigenen markdown/text-archiven als startfutter",
     "notes": "~/path/to/your/notes"
-  }
+  },
+  "session_sources": [
+    "~/.claude/projects"
+  ],
+  "_session_sources_hinweis": "optional: woher Claude-Code-session-transcripts gezogen werden (default ~/.claude/projects). weitere pfade einfach in die liste",
+  "memory_export_path": "OPTIONAL: pfad, wohin Hunch seine live-erkenntnisse als markdown exportiert (einweg-bridge)"
 }

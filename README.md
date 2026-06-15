@@ -38,6 +38,21 @@ WATCH ──▶ STORE ──▶ BASELINE ──▶ GRAPH ──▶ DETECT ──
 
 > The honest part: it does **not** predict problems weeks ahead from invisible micro-anomalies. It connects your *real* signals — which already feels surprisingly prescient.
 
+## Cold start: it reads your whole past
+
+On the **first run after install, Hunch bootstraps itself once** — automatically, no command needed. It pulls everything in so it doesn't start blind:
+
+- **Your archives** (`ingest_sources`) — notes, memories, history you point it at.
+- **Every Claude Code session you've ever had** — word for word. Hunch reads the local session transcripts (`~/.claude/projects/**/*.jsonl`, which Claude Code writes itself) and pulls each message with its real timestamp, role, **response time** (the gap to the previous turn), answer type, and an **emotion proxy**.
+
+Then it builds the baseline + graph and comes up to full speed.
+
+> **The emotion proxy is honest, not magic.** There's no real feeling-scanner. It's a transparent heuristic over written tone — ALL-CAPS, exclamation marks, swear/dismissive words (frustration) vs. hype words (excitement), terseness — giving each message a label + polarity + arousal. It reads your conversational *rhythm and mood over time*, nothing more. Generic & language-light (DE+EN lexica), tunable in `emotion.py`.
+>
+> Noise is filtered the right way (generically, not by hardcoding): sub-agent turns (`isSidechain`), automated/cron/SDK turns (`entrypoint`/`promptSource`), hook injections, tool output, and slash-command bodies are tagged or skipped — so the mood profile reflects *you typing*, not the machinery.
+
+Session sync is **incremental** afterwards — only changed transcripts are re-read — and runs read-only. Default source `~/.claude/projects` works for any Claude Code user; add more paths via `session_sources` in `config.local.json`.
+
 ## Setup
 
 1. **Deps:** `pip install pywin32 psutil` (Windows). Needs the `claude` CLI on PATH for nudge phrasing.
@@ -59,11 +74,20 @@ WATCH ──▶ STORE ──▶ BASELINE ──▶ GRAPH ──▶ DETECT ──
 Either the CLI or the `/machine` slash command (Claude Code plugin):
 
 ```
-/machine status        # is it live? what does it see right now?
-/machine scan          # current signals
-/machine why <name>    # how something connects in the graph
-/machine profile       # your pattern of life
-/machine nudge         # force a nudge now
+/hunch status          # is it live? what does it see right now?
+/hunch scan            # current signals
+/hunch why <name>      # how something connects in the graph
+/hunch profile         # your pattern of life
+/hunch sync [--full]   # pull your Claude Code sessions into the store
+/hunch mood            # your mood over time (emotion proxy across sessions)
+/hunch nudge           # force a nudge now
+```
+
+Bootstrap/sync directly:
+
+```
+python -m hunch.run --bootstrap        # force the one-time cold start (ingest + all sessions + rebuild)
+python -m hunch.session_sync --full    # (re)sync every session from scratch
 ```
 
 ## Privacy
@@ -80,18 +104,20 @@ python -m hunch.run --uninstall-task   # remove autostart
 ## Layout
 
 ```
-machine/
-  config.py     # config (env / config.local.json — no secrets in code)
-  store.py      # SQLite store
-  watcher.py    # PC signal collector
-  ingest.py     # cold-start import of your archives
-  baseline.py   # pattern-of-life profile
-  graph.py      # knowledge graph + dot-connecting
-  detect.py     # anomaly / opportunity detection
-  brain.py      # nudge engine (claude -p) + Telegram
-  cli.py        # status / scan / why / profile / nudge
-  run.py        # runtime launcher + autostart + health
-commands/machine.md   # /machine slash command
+hunch/
+  config.py        # config (env / config.local.json — no secrets in code)
+  store.py         # SQLite store (+ bulk upserts)
+  watcher.py       # PC signal collector
+  ingest.py        # cold-start import of your archives
+  session_sync.py  # pulls Claude Code session transcripts (word-for-word + metadata)
+  emotion.py       # emotion proxy (tone heuristic, DE+EN)
+  baseline.py      # pattern-of-life profile
+  graph.py         # knowledge graph + dot-connecting
+  detect.py        # anomaly / opportunity detection
+  brain.py         # nudge engine (Gemini CLI / claude / templates) + Telegram
+  cli.py           # status / scan / why / profile / sync / mood / nudge
+  run.py           # runtime launcher + bootstrap + autostart + health
+commands/hunch.md  # /hunch slash command
 ```
 
 MIT.

@@ -118,6 +118,31 @@ def add_message(text, source, role="dominik", ts=None, meta=None, hash=None):
     except Exception:
         return 0
 
+def add_messages_bulk(rows):
+    """viele messages in EINER transaktion (executemany) -> schnell beim session-sync/cold-start.
+    rows = iterable von dicts mit keys: text, source, role, ts, meta(dict|None), hash(optional).
+    dedupe via hash (INSERT OR IGNORE). return anzahl NEU eingefuegter zeilen."""
+    import hashlib
+    items = []
+    for r in rows:
+        text = r.get("text")
+        source = r.get("source")
+        role = r.get("role", "dominik")
+        ts = r.get("ts") or time.time()
+        meta = r.get("meta")
+        h = r.get("hash") or hashlib.sha1(
+            f"{source}|{role}|{(text or '')[:400]}".encode("utf-8")).hexdigest()
+        items.append((ts, source, role, text,
+                      json.dumps(meta, ensure_ascii=False) if meta else None, h))
+    if not items:
+        return 0
+    with cursor() as con:
+        before = con.total_changes
+        con.executemany(
+            "INSERT OR IGNORE INTO messages(ts,source,role,text,meta,hash) VALUES(?,?,?,?,?,?)",
+            items)
+        return con.total_changes - before
+
 # ---------- entities + edges ----------
 def upsert_entity(name, kind="topic", ts=None):
     norm = (name or "").strip().lower()

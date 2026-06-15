@@ -4,6 +4,8 @@
   python -m hunch.cli scan          -> aktuelle anomalie-/chancen-signale
   python -m hunch.cli why <name>    -> wie haengt <name> zusammen (graph)
   python -m hunch.cli profile       -> pattern-of-life
+  python -m hunch.cli sync [--full] -> bisherige Claude-Code-sessions reinziehen
+  python -m hunch.cli mood          -> stimmungs-verlauf (emotion-proxy ueber sessions)
   python -m hunch.cli nudge         -> jetzt einen nudge erzwingen (force)"""
 import sys, time, datetime, json
 try:
@@ -68,6 +70,44 @@ def profile():
     live = {h: n for h, n in ah.items() if n > 0}
     print("  aktiv-stunden (live):", live or "(watcher sammelt noch)")
 
+def sync(full=False):
+    from . import session_sync
+    print(f"🔄 ziehe Claude-Code-sessions ({'KOMPLETT' if full else 'nur neue'}) …")
+    r = session_sync.run(only_new=not full)
+    print(f"  {r['files_scanned']} sessions gescannt · {r['files_with_new']} mit neuem · "
+          f"{r['messages_inserted']} messages neu im store (von {r['messages_parsed']} geparsed)")
+
+def mood():
+    print("🎭 stimmungs-verlauf (emotion-proxy, nur Dominiks session-messages):")
+    with store.cursor() as con:
+        rows = con.execute(
+            "SELECT meta FROM messages WHERE source='session' AND role='dominik' "
+            "AND meta IS NOT NULL AND json_extract(meta,'$.auto') IS NULL").fetchall()
+    if not rows:
+        print("  (noch keine sessions gesynct — 'sync --full' laufen lassen)")
+        return
+    from collections import Counter
+    labels, sig = Counter(), Counter()
+    pol = []
+    for r in rows:
+        try:
+            m = json.loads(r["meta"])
+        except Exception:
+            continue
+        if m.get("emotion"):
+            labels[m["emotion"]] += 1
+        if isinstance(m.get("polarity"), (int, float)):
+            pol.append(m["polarity"])
+        for s in (m.get("emo_signals") or []):
+            sig[s] += 1
+    total = sum(labels.values()) or 1
+    print(f"  {total} bewertete messages · ø-polaritaet {sum(pol)/len(pol):+.2f}" if pol else f"  {total} messages")
+    for lab, n in labels.most_common():
+        bar = "█" * max(1, int(30 * n / total))
+        print(f"    {lab:12} {bar} {n} ({100*n//total}%)")
+    if sig:
+        print("  haeufigste signale:", ", ".join(f"{k}×{v}" for k, v in sig.most_common(6)))
+
 def nudge():
     from . import brain
     print("⚡ erzwinge einen nudge...")
@@ -79,9 +119,11 @@ def main(argv):
     elif cmd == "scan": scan()
     elif cmd == "why" and len(argv) > 1: why(" ".join(argv[1:]))
     elif cmd == "profile": profile()
+    elif cmd == "sync": sync(full=("--full" in argv))
+    elif cmd == "mood": mood()
     elif cmd == "nudge": nudge()
     else:
-        print("usage: status | scan | why <name> | profile | nudge")
+        print("usage: status | scan | why <name> | profile | sync [--full] | mood | nudge")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

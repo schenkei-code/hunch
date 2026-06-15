@@ -56,6 +56,11 @@ BROWSER_HISTORY_EVERY_SEC = 300
 # ---- ingest quellen (read-only startfutter; default leer -> user konfiguriert) ----
 INGEST_SOURCES = {k: pathlib.Path(_expand(v)) for k, v in (_L.get("ingest_sources") or {}).items()}
 
+# ---- session-sync quellen: Claude-Code-transcripts (jsonl). generischer default fuer
+# JEDEN Claude-Code-user -> ~/.claude/projects. zusatzpfade via config.local.json moeglich. ----
+_default_sessions = [os.path.join(os.path.expanduser("~"), ".claude", "projects")]
+SESSION_SOURCES = [_expand(p) for p in (_L.get("session_sources") or _default_sessions)]
+
 # ---- brain / nudge ----
 NUDGE_MIN_SCORE = float(_get("nudge_min_score", "MACHINE_NUDGE_MIN_SCORE", 0.62))
 _qh = _L.get("quiet_hours") or [1, 8]

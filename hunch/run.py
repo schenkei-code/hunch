@@ -7,7 +7,7 @@ non-blocking). Heartbeat in store.meta fuer health-check. Crasht nie: alles in t
   python -m hunch.run --install-task   -> Windows scheduled task (autostart at logon)
   python -m hunch.run --uninstall-task"""
 import sys, time, os, subprocess, json
-from . import config, store, watcher, baseline, graph, brain, bridge
+from . import config, store, watcher, baseline, graph, brain, bridge, ingest, session_sync
 
 PY = config.PY_BIN or sys.executable
 
@@ -41,6 +41,32 @@ def rebuild_profile():
     except Exception as e:
         print("[rebuild err]", e); return False
 
+def bootstrap(force=False):
+    """EINMALIGER cold-start: zieht beim ersten install automatisch ALLES rein —
+    infos/memories (ingest) + ALLE bisherigen sessions wort-fuer-wort (session_sync) —
+    und faehrt dann den vollen hunch-modus hoch (baseline + graph + bridge).
+    Idempotent via meta-flag; force=True erzwingt erneut. Nie blockierend."""
+    store.init_db()
+    done = store.get_profile("_bootstrapped")
+    if done and not force:
+        return {"skipped": "schon gebootstrappt"}
+    rep = {}
+    print("[hunch] bootstrap: ziehe alles einmal rein …")
+    try:
+        rep["ingest"] = ingest.run()
+    except Exception as e:
+        rep["ingest_err"] = str(e)[:120]
+    try:
+        rep["sessions"] = session_sync.run(only_new=False)
+        print(f"[hunch] sessions: {rep['sessions']}")
+    except Exception as e:
+        rep["sessions_err"] = str(e)[:120]
+    rebuild_profile()
+    store.set_profile("_bootstrapped", time.time())
+    rep["counts"] = store.counts()
+    print(f"[hunch] bootstrap fertig · {rep['counts']}")
+    return rep
+
 def trigger_brain():
     """brain als eigener subprozess -> blockt den watcher nicht, kann ihn nicht crashen."""
     try:
@@ -72,19 +98,28 @@ def loop(once=False):
     if not once and not _single_instance():
         return
     print(f"[machine] runtime start · py={PY}")
-    if store.counts()["messages"] == 0:
+    # beim allerersten lauf (frische installation): automatisch alles einmal reinziehen
+    if not store.get_profile("_bootstrapped"):
         try:
-            from . import ingest; ingest.run(); print("[machine] erstes ingest gelaufen")
+            bootstrap()
         except Exception as e:
-            print("[ingest err]", e)
+            print("[bootstrap err]", e)
     last_brain = 0.0
     last_baseline = 0.0
+    last_sync = 0.0
     while True:
         t = time.time()
         try:
             watcher.sweep(); _heartbeat("watch")
         except Exception as e:
             print("[watch err]", e)
+        # neue sessions inkrementell nachziehen (nur veraenderte transcripts)
+        if t - last_sync > config.BASELINE_EVERY_MIN * 60:
+            try:
+                session_sync.run(only_new=True); _heartbeat("session_sync")
+            except Exception as e:
+                print("[session_sync err]", e)
+            last_sync = t
         if t - last_baseline > config.BASELINE_EVERY_MIN * 60:
             rebuild_profile(); last_baseline = t
         if t - last_brain > config.BRAIN_EVERY_MIN * 60:
@@ -133,6 +168,10 @@ if __name__ == "__main__":
         uninstall_task()
     elif "--health" in a:
         print(json.dumps(health(), indent=1))
+    elif "--bootstrap" in a:
+        print(json.dumps(bootstrap(force=("--force" in a)), indent=1, ensure_ascii=False))
+    elif "--sync" in a:
+        print(json.dumps(session_sync.run(only_new=("--full" not in a)), indent=1, ensure_ascii=False))
     elif "--once" in a:
         loop(once=True); print("health:", json.dumps(health()))
     else:
