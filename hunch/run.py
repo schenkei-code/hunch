@@ -108,8 +108,8 @@ def _single_instance():
 def _reader_loop(once=False):
     """READER-modus (multi-agent): schreibt NICHT ins gemeinsame profil + kein brain.
     Beobachtet nur lokal (eigene db) und liest das gemeinsame profil — so kann nie ein
-    zweites brain den shared-store/db zerlegen. Andere agenten (openclaw etc.) brauchen
-    dafuer gar kein Hunch: sie lesen einfach share/hunch_profile.json + haengen an die inbox."""
+    zweites brain den shared-store/db zerlegen. Andere agenten brauchen dafuer gar kein
+    Hunch: sie lesen einfach share/hunch_profile.json + haengen an die inbox."""
     print("[hunch] reader-modus — nur lokal beobachten + lesen, kein shared-write/brain")
     while True:
         try:

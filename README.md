@@ -101,7 +101,7 @@ Running several AI agents (on the same box or across Windows + WSL) and want the
 - **Everyone contributes — conflict-free.** Each agent appends its observations to **its own** file in the inbox (`inbox/<agent>.jsonl`). Separate files = zero write contention. The brain folds them into the shared profile on its cycle (incremental, deduped). Non-Python agents don't even need Hunch — they just append one JSON line:
 
   ```json
-  {"ts": 1750000000, "agent": "openclaw", "text": "user keeps reopening the pricing page", "tags": ["sales"]}
+  {"ts": 1750000000, "agent": "my-agent", "text": "user keeps reopening the pricing page", "tags": ["sales"]}
   ```
 
 So a fleet of agents builds one shared understanding of you, and a crash or a second brain can't corrupt it.

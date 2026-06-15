@@ -103,7 +103,7 @@ MEMORY_EXPORT_PATH = pathlib.Path(_expand(_mep)) if _mep else None
 _sd = _get("share_dir", "HUNCH_SHARE_DIR", os.path.join(os.path.expanduser("~"), "hunch-share"))
 SHARE_DIR = pathlib.Path(_expand(_sd))
 # INBOX_DIR: append-only beitrags-ordner. jeder agent schreibt in SEINE eigene jsonl
-# (z.b. inbox/openclaw.jsonl) -> getrennte dateien = null schreib-konflikt. brain liest+dedupt.
+# (z.b. inbox/<agent>.jsonl) -> getrennte dateien = null schreib-konflikt. brain liest+dedupt.
 _ib = _get("inbox_dir", "HUNCH_INBOX_DIR", None)
 INBOX_DIR = pathlib.Path(_expand(_ib)) if _ib else (SHARE_DIR / "inbox")
 # name DIESER instanz (fuer den eigenen inbox-beitrag + lock-besitzer)

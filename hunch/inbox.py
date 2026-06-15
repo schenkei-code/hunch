@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Inbox — append-only beitrags-kanal fuer multi-agent. JEDER agent (openclaw, nox, … oder ein
-fremder prozess) wirft seine beobachtung ueber den user als EINE json-zeile in SEINE eigene
+"""Inbox — append-only beitrags-kanal fuer multi-agent. JEDER agent (oder ein fremder
+prozess) wirft seine beobachtung ueber den user als EINE json-zeile in SEINE eigene
 datei (INBOX_DIR/<agent>.jsonl). Getrennte dateien -> null schreib-konflikt zwischen agenten.
 Der EINE brain liest alle dateien inkrementell (byte-offset gemerkt), dedupt und backt die
 beobachtungen ins gemeinsame profil (als messages). So lernen alle aus dem was die anderen
 ueber den user mitkriegen — ohne sich gegenseitig zu zerlegen.
 
 Andere (auch nicht-python) agenten brauchen Hunch GAR NICHT zu importieren — sie haengen einfach
-eine zeile an ihre datei an:  {"ts":..., "agent":"openclaw", "text":"...", "tags":[...]}
+eine zeile an ihre datei an:  {"ts":..., "agent":"my-agent", "text":"...", "tags":[...]}
 """
 import os, json, time, pathlib, hashlib
 from . import config, store
