@@ -61,11 +61,14 @@ NUDGE_MIN_SCORE = float(_get("nudge_min_score", "MACHINE_NUDGE_MIN_SCORE", 0.62)
 _qh = _L.get("quiet_hours") or [1, 8]
 NUDGE_QUIET_HOURS = (int(_qh[0]), int(_qh[1]))
 NUDGE_MIN_GAP_MIN = int(_get("nudge_min_gap_min", "MACHINE_NUDGE_GAP", 90))
+# LLM-formulierung der nudges. Engine: "gemini" (GRATIS via Gemini-CLI free-tier, default) |
+# "claude" (claude -p, kann pay-as-you-go kosten) | "off" (nur lokale templates, 0 calls).
+# Fallback auf template wenn der LLM-call fehlschlaegt -> nie blockierend, nie teuer.
+NUDGE_LLM = _get("nudge_llm", "HUNCH_NUDGE_LLM", "gemini")
+GEMINI_BIN = _get("gemini_bin", "HUNCH_GEMINI_BIN", "gemini")
+GEMINI_MODEL = _get("gemini_model", "HUNCH_GEMINI_MODEL", "gemini-2.5-flash")
 CLAUDE_BIN = _get("claude_bin", "MACHINE_CLAUDE_BIN", "claude")
 NUDGE_MODEL = _get("nudge_model", "MACHINE_NUDGE_MODEL", "claude-sonnet-4-6")
-# LLM-formulierung der nudges via `claude -p`. Default AUS = 100% gratis/lokal (template-nudges).
-# Nur einschalten wenn du budget/credit hast (claude -p kann pay-as-you-go kosten).
-NUDGE_USE_LLM = str(_get("nudge_use_llm", "HUNCH_NUDGE_USE_LLM", "0")) in ("1", "true", "True")
 
 # ---- runtime / scheduler ----
 BRAIN_EVERY_MIN = int(_get("brain_every_min", "MACHINE_BRAIN_EVERY", 30))

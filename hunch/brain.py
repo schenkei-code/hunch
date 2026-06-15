@@ -50,8 +50,9 @@ def craft_nudge(signal, focus, profile_summary, timeout=90):
     }
     template = pick(templates.get(signal["type"], [signal["text"]]))
 
-    # 2) OPTIONAL: nur wenn explizit eingeschaltet (kostet evtl. claude -p / pay-as-you-go).
-    if config.NUDGE_USE_LLM:
+    # 2) OPTIONAL LLM-formulierung. Default engine = gemini (GRATIS free-tier). Fallback -> template.
+    engine = (config.NUDGE_LLM or "off").lower()
+    if engine in ("gemini", "claude"):
         ctx = {"signal": signal.get("text"), "signal_type": signal.get("type"), "data": d,
                "aktueller_fokus": focus[:5],
                "top_themen": (profile_summary or {}).get("top_topics", [])[:8]}
@@ -59,18 +60,39 @@ def craft_nudge(signal, focus, profile_summary, timeout=90):
             "Du bist 'Hunch' — ein stiller, proaktiver partner von " + config.USER_DESC + ". "
             "Du hast folgendes signal aus seiner aktivitaet erkannt:\n" + json.dumps(ctx, ensure_ascii=False)
             + "\n\nFormuliere EINEN kurzen impuls auf deutsch (max 2 saetze), der sich anfuehlt wie SEIN "
-            "eigener gedanke — NICHT wie ein alarm. locker, kleinschreibung, kein meta. nur der impuls-text."
+            "eigener gedanke / ein zufaelliger geistesblitz — NICHT wie ein alarm. locker, kleinschreibung, "
+            "kein meta, kein 'als KI'. NUR der impuls-text, sonst nichts."
         )
-        try:
-            r = subprocess.run(
-                [config.CLAUDE_BIN, "-p", prompt, "--model", config.NUDGE_MODEL, "--strict-mcp-config"],
-                capture_output=True, text=True, timeout=timeout, encoding="utf-8")
-            out = (r.stdout or "").strip()
-            if out and len(out) > 8:
-                return out.split("\n\n")[0].strip()[:600], "claude"
-        except Exception:
-            pass
+        out = _run_llm(engine, prompt, timeout)
+        if out and len(out) > 8:
+            return out, engine
     return template, "template"
+
+# CLI-noise (gemini startup-warnings etc.) der NICHT die antwort is
+_NOISE_PREFIX = ("warning:", "ripgrep", "mcp issues", "skill ", "loaded cached", "data collection",
+                 "[dotenv", "true color", "note:", "tip:", "deprecat")
+def _run_llm(engine, prompt, timeout):
+    try:
+        if engine == "gemini":
+            # gemini ist auf Windows ein npm .cmd-shim -> shell=True; prompt via stdin (kein arg-quoting),
+            # -p "." triggert nur den headless-modus, der echte prompt kommt vom stdin.
+            r = subprocess.run(f'"{config.GEMINI_BIN}" -m {config.GEMINI_MODEL} -p "."',
+                               input=prompt, capture_output=True, text=True, timeout=timeout,
+                               encoding="utf-8", shell=True)
+        else:
+            r = subprocess.run([config.CLAUDE_BIN, "-p", prompt, "--model", config.NUDGE_MODEL,
+                                "--strict-mcp-config"], capture_output=True, text=True,
+                               timeout=timeout, encoding="utf-8")
+        out = (r.stdout or "").strip()
+        if not out:
+            return None
+        # noise-zeilen rausfiltern, echte antwort behalten
+        lines = [ln.strip() for ln in out.splitlines() if ln.strip()
+                 and not ln.strip().lower().startswith(_NOISE_PREFIX)]
+        text = " ".join(lines).strip()
+        return text[:600] if text else None
+    except Exception:
+        return None
 
 # ---------- telegram ----------
 def send_telegram(text):
