@@ -2,10 +2,10 @@
 """Runtime/Launcher — startet die ganze Machine mit EINEM befehl.
 Dauer-loop: watcher-sweeps + periodisch baseline/graph-rebuild + periodisch brain (als subprozess,
 non-blocking). Heartbeat in store.meta fuer health-check. Crasht nie: alles in try/except, auto-continue.
-  python -m machine.run            -> foreground dauerloop
-  python -m machine.run --once     -> ein zyklus (test)
-  python -m machine.run --install-task   -> Windows scheduled task (autostart at logon)
-  python -m machine.run --uninstall-task"""
+  python -m hunch.run            -> foreground dauerloop
+  python -m hunch.run --once     -> ein zyklus (test)
+  python -m hunch.run --install-task   -> Windows scheduled task (autostart at logon)
+  python -m hunch.run --uninstall-task"""
 import sys, time, os, subprocess, json
 from . import config, store, watcher, baseline, graph, brain
 
@@ -37,7 +37,7 @@ def rebuild_profile():
 def trigger_brain():
     """brain als eigener subprozess -> blockt den watcher nicht, kann ihn nicht crashen."""
     try:
-        subprocess.Popen([PY, "-m", "machine.brain"], cwd=str(config.ROOT),
+        subprocess.Popen([PY, "-m", "hunch.brain"], cwd=str(config.ROOT),
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         _heartbeat("brain")
     except Exception as e:
@@ -90,13 +90,13 @@ def loop(once=False):
 def _startup_dir():
     return os.path.join(os.path.expanduser("~"),
                         "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup")
-_VBS = "the-machine.vbs"
+_VBS = "hunch.vbs"
 
 def install_task():
     """legt ein hidden-launcher-vbs in den Startup-ordner -> autostart bei jedem logon, ohne admin."""
     vbs = (f'Set s = CreateObject("WScript.Shell")\r\n'
            f's.CurrentDirectory = "{config.ROOT}"\r\n'
-           f's.Run "cmd /c ""{PY}"" -m machine.run", 0, False\r\n')
+           f's.Run "cmd /c ""{PY}"" -m hunch.run", 0, False\r\n')
     p = os.path.join(_startup_dir(), _VBS)
     try:
         os.makedirs(_startup_dir(), exist_ok=True)

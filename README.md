@@ -1,4 +1,4 @@
-# 🧠 The Machine
+# 🧠 Hunch
 
 A self-contained **proactive AI partner** that runs locally on your PC. Inspired by the "Machine" from *Person of Interest* — but honest about what's real vs sci-fi.
 
@@ -32,9 +32,9 @@ WATCH ──▶ STORE ──▶ BASELINE ──▶ GRAPH ──▶ DETECT ──
    - `quiet_hours`, `nudge_min_score`, `nudge_min_gap_min` — tune to taste
 3. **Run:**
    ```
-   python -m machine.run            # foreground loop (watcher + scheduler)
-   python -m machine.run --install-task    # autostart at logon (Startup folder, no admin)
-   python -m machine.run --health   # is it alive?
+   python -m hunch.run            # foreground loop (watcher + scheduler)
+   python -m hunch.run --install-task    # autostart at logon (Startup folder, no admin)
+   python -m hunch.run --health   # is it alive?
    ```
 
 ## Query it
@@ -51,12 +51,12 @@ Either the CLI or the `/machine` slash command (Claude Code plugin):
 
 ## Privacy
 
-Everything is **local**. The watcher captures a lot (that's the point) — it all lives in `data/machine.db` on your machine and is never uploaded. The only outbound traffic is the nudge to *your own* Telegram. `config.local.json`, the DB, and `.env` are gitignored and never leave your repo.
+Everything is **local**. The watcher captures a lot (that's the point) — it all lives in `data/hunch.db` on your machine and is never uploaded. The only outbound traffic is the nudge to *your own* Telegram. `config.local.json`, the DB, and `.env` are gitignored and never leave your repo.
 
 ## Off switch
 
 ```
-python -m machine.run --uninstall-task   # remove autostart
+python -m hunch.run --uninstall-task   # remove autostart
 # then kill the process listed in data/runtime.pid
 ```
 

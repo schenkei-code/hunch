@@ -32,7 +32,7 @@ def craft_nudge(signal, focus, profile_summary, timeout=90):
         "top_themen": (profile_summary or {}).get("top_topics", [])[:8],
     }
     prompt = (
-        "Du bist 'The Machine' — ein stiller, proaktiver partner von " + config.USER_DESC + ". "
+        "Du bist 'Hunch' — ein stiller, proaktiver partner von " + config.USER_DESC + ". "
         "Du hast folgendes signal aus seiner aktivitaet erkannt:\n"
         + json.dumps(ctx, ensure_ascii=False)
         + "\n\nFormuliere EINEN einzigen, kurzen impuls auf deutsch (max 2 saetze), der sich anfuehlt "

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """CLI fuer die Machine — abfragbar machen. Wird vom /machine-slash-command aufgerufen.
-  python -m machine.cli status        -> health + letzter nudge + top-signale + profil
-  python -m machine.cli scan          -> aktuelle anomalie-/chancen-signale
-  python -m machine.cli why <name>    -> wie haengt <name> zusammen (graph)
-  python -m machine.cli profile       -> pattern-of-life
-  python -m machine.cli nudge         -> jetzt einen nudge erzwingen (force)"""
+  python -m hunch.cli status        -> health + letzter nudge + top-signale + profil
+  python -m hunch.cli scan          -> aktuelle anomalie-/chancen-signale
+  python -m hunch.cli why <name>    -> wie haengt <name> zusammen (graph)
+  python -m hunch.cli profile       -> pattern-of-life
+  python -m hunch.cli nudge         -> jetzt einen nudge erzwingen (force)"""
 import sys, time, datetime, json
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -23,7 +23,7 @@ def _ago(ts):
 def status():
     h = runtime.health()
     c = h["counts"]
-    print("🧠 THE MACHINE — status")
+    print("🧠 HUNCH — status")
     print(f"  watcher: {'🟢 live' if h['watcher_alive'] else '🔴 aus'}  (letzter beat {_ago(h.get('hb_watch'))})")
     print(f"  daten: {c['events']} events · {c['messages']} messages · {c['entities']} entitaeten · {c['edges']} graph-kanten · {c['nudges']} nudges")
     with store.cursor() as con:

@@ -7,7 +7,7 @@ import os, json, pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 DATA_DIR.mkdir(exist_ok=True)
-DB_PATH = DATA_DIR / "machine.db"
+DB_PATH = DATA_DIR / "hunch.db"
 
 # ---- lokale config (gitignored) als quelle fuer alles persoenliche ----
 def _load_local():

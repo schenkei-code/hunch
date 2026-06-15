@@ -3,7 +3,7 @@
 Signale: aktives fenster (+prozess), app-switches, clipboard-aenderungen, geoeffnete dateien
 (via fenstertitel + Windows Recent), browser-historie (Chrome/Edge). Nur bei CHANGE loggen.
 Robust: jede quelle in try/except, eine kaputte quelle killt den loop nicht.
-Modi: `python -m machine.watcher --seconds N` (laeuft N sek, fuer test) | `--once` | (default: dauerloop)."""
+Modi: `python -m hunch.watcher --seconds N` (laeuft N sek, fuer test) | `--once` | (default: dauerloop)."""
 import sys, time, os, shutil, sqlite3, glob, tempfile, pathlib
 from . import config, store
 

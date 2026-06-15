@@ -1,12 +1,12 @@
 ---
-description: The Machine abfragen — status, scan, why <name>, profile, nudge
+description: Hunch abfragen — status, scan, why <name>, profile, nudge
 argument-hint: "[status|scan|why <name>|profile|nudge]"
 ---
 
 Führe das Machine-CLI mit den Argumenten `$ARGUMENTS` aus (Default `status`, wenn leer) und zeig dem User das Ergebnis 1:1:
 
 ```
-cd ~/the-machine && PYTHONIOENCODING=utf-8 python -m machine.cli $ARGUMENTS
+cd ~/hunch && PYTHONIOENCODING=utf-8 python -m hunch.cli $ARGUMENTS
 ```
 
 Unterbefehle:

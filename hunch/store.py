@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SQLite-Store fuer The Machine. WAL-mode, kurze transaktionen, retry-safe.
+"""SQLite-Store fuer Hunch. WAL-mode, kurze transaktionen, retry-safe.
 Tabellen: events, messages, entities, edges, profile, nudges, meta.
 Flexible JSON-felder (`meta`) damit das schema mitwaechst ohne migration."""
 import sqlite3, json, time, contextlib
