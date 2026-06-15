@@ -7,7 +7,7 @@ non-blocking). Heartbeat in store.meta fuer health-check. Crasht nie: alles in t
   python -m hunch.run --install-task   -> Windows scheduled task (autostart at logon)
   python -m hunch.run --uninstall-task"""
 import sys, time, os, subprocess, json
-from . import config, store, watcher, baseline, graph, brain, bridge, ingest, session_sync
+from . import config, store, watcher, baseline, graph, brain, bridge, ingest, session_sync, share, inbox
 
 PY = config.PY_BIN or sys.executable
 
@@ -37,6 +37,13 @@ def rebuild_profile():
                 _heartbeat("bridge")
         except Exception as e:
             print("[bridge err]", e)
+        # share: profil (md+json) in den gemeinsamen ordner publizieren -> alle agenten lesen es
+        try:
+            ok, info = share.publish()
+            if ok:
+                _heartbeat("share")
+        except Exception as e:
+            print("[share err]", e)
         return True
     except Exception as e:
         print("[rebuild err]", e); return False
@@ -61,6 +68,11 @@ def bootstrap(force=False):
         print(f"[hunch] sessions: {rep['sessions']}")
     except Exception as e:
         rep["sessions_err"] = str(e)[:120]
+    # beitraege anderer agenten (inbox) gleich mit einsammeln
+    try:
+        rep["inbox"] = inbox.ingest()
+    except Exception as e:
+        rep["inbox_err"] = str(e)[:120]
     rebuild_profile()
     store.set_profile("_bootstrapped", time.time())
     rep["counts"] = store.counts()
@@ -93,26 +105,55 @@ def _single_instance():
     except Exception:
         return True
 
+def _reader_loop(once=False):
+    """READER-modus (multi-agent): schreibt NICHT ins gemeinsame profil + kein brain.
+    Beobachtet nur lokal (eigene db) und liest das gemeinsame profil — so kann nie ein
+    zweites brain den shared-store/db zerlegen. Andere agenten (openclaw etc.) brauchen
+    dafuer gar kein Hunch: sie lesen einfach share/hunch_profile.json + haengen an die inbox."""
+    print("[hunch] reader-modus — nur lokal beobachten + lesen, kein shared-write/brain")
+    while True:
+        try:
+            watcher.sweep(); _heartbeat("watch")
+        except Exception as e:
+            print("[watch err]", e)
+        if once:
+            break
+        time.sleep(config.WATCH_INTERVAL_SEC)
+
 def loop(once=False):
     store.init_db()
     if not once and not _single_instance():
         return
-    print(f"[machine] runtime start · py={PY}")
+    role = share.resolve_role()
+    print(f"[hunch] runtime start · py={PY} · role={role}")
+    if role == "reader":
+        _reader_loop(once); return
+    # ----- BRAIN: der EINE schreiber. haelt das brain-lock, sammelt inbox, publiziert profil -----
+    share.acquire_or_refresh_lock()
     # beim allerersten lauf (frische installation): automatisch alles einmal reinziehen
     if not store.get_profile("_bootstrapped"):
         try:
             bootstrap()
         except Exception as e:
             print("[bootstrap err]", e)
-    last_brain = 0.0
-    last_baseline = 0.0
-    last_sync = 0.0
+    last_brain = last_baseline = last_sync = last_inbox = 0.0
     while True:
         t = time.time()
+        # falls ein ANDERES frisches brain auftaucht -> freiwillig zum reader wechseln (ein-brain-regel)
+        if not share.acquire_or_refresh_lock():
+            print("[hunch] anderes brain aktiv -> wechsel in reader-modus")
+            _reader_loop(once); return
         try:
             watcher.sweep(); _heartbeat("watch")
         except Exception as e:
             print("[watch err]", e)
+        # inbox-beitraege der anderen agenten haeufig + guenstig einsammeln
+        if t - last_inbox > 60:
+            try:
+                inbox.ingest(); _heartbeat("inbox")
+            except Exception as e:
+                print("[inbox err]", e)
+            last_inbox = t
         # neue sessions inkrementell nachziehen (nur veraenderte transcripts)
         if t - last_sync > config.BASELINE_EVERY_MIN * 60:
             try:
@@ -172,6 +213,12 @@ if __name__ == "__main__":
         print(json.dumps(bootstrap(force=("--force" in a)), indent=1, ensure_ascii=False))
     elif "--sync" in a:
         print(json.dumps(session_sync.run(only_new=("--full" not in a)), indent=1, ensure_ascii=False))
+    elif "--publish" in a:
+        store.init_db(); ok, info = share.publish(); print("publish:", "OK ->" if ok else "FAIL:", info)
+    elif "--ingest-inbox" in a:
+        print(json.dumps(inbox.ingest(), indent=1, ensure_ascii=False))
+    elif "--role" in a:
+        print("role:", share.resolve_role(), "· lock:", json.dumps(share.read_lock()))
     elif "--once" in a:
         loop(once=True); print("health:", json.dumps(health()))
     else:

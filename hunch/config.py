@@ -84,3 +84,20 @@ PY_BIN = _get("py_bin", "MACHINE_PY", None)
 # nur gesetzt wenn in config.local.json/env vorhanden -> public repo bleibt clean.
 _mep = _get("memory_export_path", "HUNCH_MEMORY_EXPORT", None)
 MEMORY_EXPORT_PATH = pathlib.Path(_expand(_mep)) if _mep else None
+
+# ---- multi-agent / multi-device ("ein schreiber, viele leser") ----
+# SHARE_DIR: gemeinsamer ordner den ALLE agenten (windows + WSL) lesen koennen.
+# Hunch (der EINE brain) publiziert dorthin das profil; andere agenten lesen es nur.
+# default ~/hunch-share -> unter windows C:\Users\<u>\hunch-share, in WSL via /mnt/c/...
+_sd = _get("share_dir", "HUNCH_SHARE_DIR", os.path.join(os.path.expanduser("~"), "hunch-share"))
+SHARE_DIR = pathlib.Path(_expand(_sd))
+# INBOX_DIR: append-only beitrags-ordner. jeder agent schreibt in SEINE eigene jsonl
+# (z.b. inbox/openclaw.jsonl) -> getrennte dateien = null schreib-konflikt. brain liest+dedupt.
+_ib = _get("inbox_dir", "HUNCH_INBOX_DIR", None)
+INBOX_DIR = pathlib.Path(_expand(_ib)) if _ib else (SHARE_DIR / "inbox")
+# name DIESER instanz (fuer den eigenen inbox-beitrag + lock-besitzer)
+AGENT_NAME = _get("agent_name", "HUNCH_AGENT_NAME", "hunch")
+# rolle: "brain" (schreibt store+profil), "reader" (nur lesen+anhaengen), "auto" (lock entscheidet)
+HUNCH_ROLE = (_get("role", "HUNCH_ROLE", "auto") or "auto").lower()
+# wie lange ein brain-lock-heartbeat als "lebendig" gilt (sek) -> sonst uebernimmt ein anderer
+BRAIN_LOCK_TTL_SEC = int(_get("brain_lock_ttl", "HUNCH_BRAIN_LOCK_TTL", 180))

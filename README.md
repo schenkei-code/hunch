@@ -80,6 +80,8 @@ Either the CLI or the `/machine` slash command (Claude Code plugin):
 /hunch profile         # your pattern of life
 /hunch sync [--full]   # pull your Claude Code sessions into the store
 /hunch mood            # your mood over time (emotion proxy across sessions)
+/hunch share           # multi-agent state: who's the brain, shared profile
+/hunch note <text>     # contribute an observation to the shared inbox
 /hunch nudge           # force a nudge now
 ```
 
@@ -89,6 +91,20 @@ Bootstrap/sync directly:
 python -m hunch.run --bootstrap        # force the one-time cold start (ingest + all sessions + rebuild)
 python -m hunch.session_sync --full    # (re)sync every session from scratch
 ```
+
+## Multi-agent: one writer, many readers
+
+Running several AI agents (on the same box or across Windows + WSL) and want them all to know you better — **without trampling each other**? Hunch is built for that, on a simple rule: **one writer, many readers.**
+
+- **One brain.** Exactly one Hunch instance writes the store and publishes the profile. A cooperative, heartbeat-based lock (`share/brain.lock`) guarantees it: whoever doesn't see a fresh foreign lock becomes the brain, everyone else becomes a `reader`. No two brains, no DB races. (`role: auto|brain|reader`.)
+- **Everyone reads.** The brain publishes `hunch_profile.json` (structured) + `hunch_profile.md` (readable) to a shared folder (`share_dir`, default `~/hunch-share` — reachable from Windows *and* WSL). Any agent just reads that file. Reading can never collide, from any number of agents.
+- **Everyone contributes — conflict-free.** Each agent appends its observations to **its own** file in the inbox (`inbox/<agent>.jsonl`). Separate files = zero write contention. The brain folds them into the shared profile on its cycle (incremental, deduped). Non-Python agents don't even need Hunch — they just append one JSON line:
+
+  ```json
+  {"ts": 1750000000, "agent": "openclaw", "text": "user keeps reopening the pricing page", "tags": ["sales"]}
+  ```
+
+So a fleet of agents builds one shared understanding of you, and a crash or a second brain can't corrupt it.
 
 ## Privacy
 
@@ -115,7 +131,9 @@ hunch/
   graph.py         # knowledge graph + dot-connecting
   detect.py        # anomaly / opportunity detection
   brain.py         # nudge engine (Gemini CLI / claude / templates) + Telegram
-  cli.py           # status / scan / why / profile / sync / mood / nudge
+  share.py         # multi-agent: publish profile + brain-lock (one writer, many readers)
+  inbox.py         # multi-agent: append-only contributions from other agents
+  cli.py           # status / scan / why / profile / sync / mood / share / note / nudge
   run.py           # runtime launcher + bootstrap + autostart + health
 commands/hunch.md  # /hunch slash command
 ```

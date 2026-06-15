@@ -108,6 +108,36 @@ def mood():
     if sig:
         print("  haeufigste signale:", ", ".join(f"{k}×{v}" for k, v in sig.most_common(6)))
 
+def note(text):
+    """eine beobachtung über den user in die eigene agent-inbox haengen (multi-agent)."""
+    from . import inbox, config
+    ok = inbox.note(text)
+    print(f"📥 inbox-notiz von '{config.AGENT_NAME}': {'gespeichert' if ok else 'FEHLER'}")
+    print(f"   „{text}“")
+
+def share_state():
+    """multi-agent-status: wer is brain, gemeinsames profil, inbox."""
+    from . import share, config
+    role = share.resolve_role()
+    lock = share.read_lock()
+    print("🤝 HUNCH — multi-agent")
+    print(f"  diese instanz: '{config.AGENT_NAME}' · rolle: {role}")
+    print(f"  share-ordner: {config.SHARE_DIR}")
+    print(f"  inbox-ordner: {config.INBOX_DIR}")
+    if lock:
+        print(f"  aktiver brain: {lock.get('owner')} (heartbeat {_ago(lock.get('ts'))})")
+    else:
+        print("  aktiver brain: (kein lock — noch kein brain gelaufen)")
+    prof = share.read_profile()
+    if prof:
+        print(f"  gemeinsames profil: {prof['counts']['messages']} msgs · "
+              f"fokus {', '.join(prof.get('recent_focus', [])[:5]) or '—'}")
+        if prof.get("recent_mood"):
+            top = sorted(prof["recent_mood"].items(), key=lambda x: -x[1])[:3]
+            print(f"  stimmung zuletzt: {', '.join(f'{k} {v}' for k,v in top)}")
+    else:
+        print("  gemeinsames profil: (noch nicht publiziert)")
+
 def nudge():
     from . import brain
     print("⚡ erzwinge einen nudge...")
@@ -121,9 +151,12 @@ def main(argv):
     elif cmd == "profile": profile()
     elif cmd == "sync": sync(full=("--full" in argv))
     elif cmd == "mood": mood()
+    elif cmd == "note" and len(argv) > 1: note(" ".join(argv[1:]))
+    elif cmd == "share": share_state()
     elif cmd == "nudge": nudge()
     else:
-        print("usage: status | scan | why <name> | profile | sync [--full] | mood | nudge")
+        print("usage: status | scan | why <name> | profile | sync [--full] | mood | "
+              "note <text> | share | nudge")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

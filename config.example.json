@@ -13,5 +13,9 @@
     "~/.claude/projects"
   ],
   "_session_sources_hinweis": "optional: woher Claude-Code-session-transcripts gezogen werden (default ~/.claude/projects). weitere pfade einfach in die liste",
-  "memory_export_path": "OPTIONAL: pfad, wohin Hunch seine live-erkenntnisse als markdown exportiert (einweg-bridge)"
+  "memory_export_path": "OPTIONAL: pfad, wohin Hunch seine live-erkenntnisse als markdown exportiert (einweg-bridge)",
+  "share_dir": "OPTIONAL: gemeinsamer ordner den alle agenten lesen (default ~/hunch-share). der EINE brain publiziert hier hunch_profile.json+md",
+  "inbox_dir": "OPTIONAL: append-only beitrags-ordner (default <share_dir>/inbox). jeder agent schreibt in seine eigene <agent>.jsonl",
+  "agent_name": "OPTIONAL: name DIESER instanz fuer inbox-beitrag + lock (default 'hunch')",
+  "role": "OPTIONAL: 'brain' (schreibt) | 'reader' (nur lesen+anhaengen) | 'auto' (lock entscheidet, default)"
 }

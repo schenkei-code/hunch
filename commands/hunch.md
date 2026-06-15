@@ -1,6 +1,6 @@
 ---
-description: Hunch abfragen — status, scan, why <name>, profile, sync, mood, nudge
-argument-hint: "[status|scan|why <name>|profile|sync|mood|nudge]"
+description: Hunch abfragen — status, scan, why <name>, profile, sync, mood, share, note, nudge
+argument-hint: "[status|scan|why <name>|profile|sync|mood|share|note <text>|nudge]"
 ---
 
 Führe das Machine-CLI mit den Argumenten `$ARGUMENTS` aus (Default `status`, wenn leer) und zeig dem User das Ergebnis 1:1:
@@ -16,6 +16,8 @@ Unterbefehle:
 - `profile` — Pattern of Life (Rhythmus, Apps, Themen, Entitäten)
 - `sync [--full]` — bisherige Claude-Code-Sessions in den Store ziehen (wort-für-wort + Metadaten)
 - `mood` — Stimmungs-Verlauf über alle Sessions (Emotion-Proxy: genervt/zufrieden/begeistert…)
+- `share` — Multi-Agent-Status: wer ist Brain, gemeinsames Profil, Inbox-Ordner
+- `note <text>` — eine Beobachtung in die gemeinsame Agent-Inbox hängen
 - `nudge` — jetzt einen Impuls erzwingen (force, ignoriert Ruhezeiten/Gap)
 
 Gib die CLI-Ausgabe direkt wieder, ohne sie umzuformulieren. Wenn der User keinen Unterbefehl nennt, nimm `status`.
