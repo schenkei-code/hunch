@@ -61,6 +61,17 @@ INGEST_SOURCES = {k: pathlib.Path(_expand(v)) for k, v in (_L.get("ingest_source
 _default_sessions = [os.path.join(os.path.expanduser("~"), ".claude", "projects")]
 SESSION_SOURCES = [_expand(p) for p in (_L.get("session_sources") or _default_sessions)]
 
+# ---- eigene ignorier-liste fuer entitaeten (z.b. der EIGENE name, firmen, app-noise) ----
+# generisch: jeder traegt in config.local.json/env sein persoenliches rauschen ein -> public code
+# bleibt clean. wird zusaetzlich zur eingebauten generischen NOISE-liste in graph.py angewandt.
+_ie = _L.get("ignore_entities") or []
+if isinstance(_ie, str):
+    _ie = [x.strip() for x in _ie.split(",")]
+_ie_env = os.environ.get("HUNCH_IGNORE_ENTITIES", "")
+if _ie_env:
+    _ie += [x.strip() for x in _ie_env.split(",")]
+IGNORE_ENTITIES = set(s.lower() for s in _ie if s)
+
 # ---- brain / nudge ----
 NUDGE_MIN_SCORE = float(_get("nudge_min_score", "MACHINE_NUDGE_MIN_SCORE", 0.62))
 _qh = _L.get("quiet_hours") or [1, 8]

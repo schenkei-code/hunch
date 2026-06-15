@@ -12,6 +12,8 @@
   "session_sources": [
     "~/.claude/projects"
   ],
+  "ignore_entities": ["Your Name", "AnApp"],
+  "_ignore_entities_hinweis": "optional: entitaeten die NIE als thema zaehlen (z.b. dein eigener name, app-namen die durchrutschen). zusaetzlich zur eingebauten noise-liste",
   "_session_sources_hinweis": "optional: woher Claude-Code-session-transcripts gezogen werden (default ~/.claude/projects). weitere pfade einfach in die liste",
   "memory_export_path": "OPTIONAL: pfad, wohin Hunch seine live-erkenntnisse als markdown exportiert (einweg-bridge)",
   "share_dir": "OPTIONAL: gemeinsamer ordner den alle agenten lesen (default ~/hunch-share). der EINE brain publiziert hier hunch_profile.json+md",

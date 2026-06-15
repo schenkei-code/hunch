@@ -67,14 +67,14 @@ def build_topics(limit=40):
     return top_uni, top_bi
 
 def build_entities(limit=40):
+    from . import graph  # lazy -> vermeidet zirkular-import; nutzt den GEMEINSAMEN entity-filter
     caps = collections.Counter()
     with store.cursor() as con:
         rows = con.execute("SELECT text FROM messages").fetchall()
         rows += con.execute("SELECT title AS text FROM events WHERE title IS NOT NULL").fetchall()
     for r in rows:
-        for m in CAP.findall(r["text"] or ""):
-            if m.lower() not in STOP and len(m) > 3:
-                caps[m] += 1
+        for m in graph.extract_entities(r["text"] or ""):
+            caps[m] += 1
     return [{"name": k, "n": v} for k, v in caps.most_common(limit) if v >= 3]
 
 def run():

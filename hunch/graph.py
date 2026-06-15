@@ -3,7 +3,7 @@
 Entitaeten = nodes, co-occurrence = edges. dot_connect() findet verbindungen zwischen
 aktuellem fokus und alten nodes („das prinzip aus projekt X passt auf dein aktuelles Y")."""
 import re, collections, heapq
-from . import store, baseline
+from . import store, baseline, config
 
 # generische woerter die KEINE entitaet sind
 NOISE = set(s.lower() for s in """
@@ -11,7 +11,20 @@ Users User Bild Video Problem Nachricht Ihre Nachrichten Foto Link Code Tool Plu
 Hallo Danke Heute Morgen Abend Tag Woche Monat Jahr Stunde Minute Mail Email Account Status Update
 Telegram Chat Channel Session Assistant System Prompt Test Beispiel Frage Antwort Info Dabei Damit
 The This That What When Where Here There Just Like Make Done Next Step Run Build Okay
+Jetzt Gerade Schon Noch Mehr Weniger Daily Beta Alpha Version Release Debug Continue Cancel Submit
+Settings Options Default Custom Loading Error Warning Success Open Close Save Edit View Window Tab
+Page Search Home Back Next Menu Button Click Image Multiply Divide Value Name Type List Item Data
+Browser Window Desktop Taskbar Folder File Path Output Input Result Console Output
+Google Chrome Mozilla Firefox Microsoft Edge Safari Opera Brave Visual Studio Notepad Explorer
+Terminal Powershell Github Gitlab Stack Overflow Reddit Youtube Twitter Discord Slack Notion Figma
+Mach Erst Gibt Geht Kann Soll Will Muss Hier Dann Aber Oder Und Wenn Weil Also Dazu Sonst Eben
+Halt Bitte Gut Schlecht Ach Naja Genau Klar Super Mega Geil Krass Echt Voll Schau Guck Pass Lass
+Warte Kurz Lang Ganz Viel Wenig Etwas Irgendwas Nichts Alles Jeder Jede Jedes Wer Was Wie Wo Wann
 """.split())
+# mehrwort-app-namen die als ganzes raus muessen (fenstertitel-rauschen)
+NOISE_PHRASES = set(s.lower() for s in (
+    "google chrome", "mozilla firefox", "microsoft edge", "visual studio", "visual studio code",
+    "stack overflow", "claude code", "new tab", "untitled", "file explorer"))
 
 CAP = re.compile(r"\b([A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9]{2,}(?:\s[A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9]+){0,2})\b")
 MAX_PER_DOC = 6   # max entitaeten pro message fuer edges
@@ -26,14 +39,19 @@ _BADWORD = set("nachricht snapshot messages message dokument browser problem dat
 
 def extract_entities(text):
     out = []
+    ignore = getattr(config, "IGNORE_ENTITIES", set())
     for m in CAP.findall(text or ""):
         ml = m.lower()
-        if ml in NOISE or len(m) < 4:
+        if ml in NOISE or ml in NOISE_PHRASES or ml in ignore or len(m) < 4:
             continue
         toks = ml.split()
         if toks[0] in _BADLEAD:                  # 'Ihre Nachricht', 'Guten Tag'
             continue
+        # jedes einzel-token rauschen? (z.b. 'Google Chrome', 'Visual Studio') -> raus
         if all(t in _BADWORD or t in NOISE for t in toks):
+            continue
+        # alle tokens stehen auf der user-ignore-liste -> raus
+        if toks and all(t in ignore for t in toks):
             continue
         out.append(m)
     return out
