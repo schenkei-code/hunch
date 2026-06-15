@@ -4,7 +4,7 @@ Quelle: die JSONL-transcripts die Claude Code selbst pro session schreibt
 (~/.claude/projects/<projektordner>/<uuid>.jsonl). Jede zeile = ein event; relevant sind
 'user' (mensch tippt) und 'assistant' (antwort). Pro nachricht wird festgehalten:
   - text (wort fuer wort)            - timestamp (echte uhrzeit)
-  - rolle (dominik|assistant)        - antwortzeit (gap zur vorherigen nachricht)
+  - rolle (user|assistant)           - antwortzeit (gap zur vorherigen nachricht)
   - antwort-art (frage|ansage|tool|kurz|lang)
   - emotion-proxy (emotion.py: ton/erregung/polaritaet)  - session-id + projekt
 
@@ -111,7 +111,7 @@ def _answer_kind(text, flags, role):
         return "tool_result"
     n = len(text.split())
     base = []
-    if role == "dominik":
+    if role == "user":
         if text.rstrip().endswith("?") or text.lower().split(" ")[:1] in (
                 ["wie"], ["was"], ["warum"], ["wieso"], ["kannst"], ["geht"]):
             base.append("frage")
@@ -187,12 +187,12 @@ def sync_file(path, state, only_new=True):
             if not text or len(text) < MIN_TEXT or _is_noise(text):
                 # tool_result/leer trotzdem fuer den rhythmus zaehlen? nein -> ueberspringen
                 continue
-            role = "dominik" if typ == "user" else "assistant"
-            auto = _is_automated(o, text) if role == "dominik" else False
+            role = "user" if typ == "user" else "assistant"
+            auto = _is_automated(o, text) if role == "user" else False
             resp_dt = round(ts - prev_ts, 1) if (ts and prev_ts) else None
             prev_ts = ts or prev_ts
             # emotion nur fuer ECHTES menschliches gespraech (kein cron/agent/command-body)
-            emo = emotion.emotion(text, role) if (role == "dominik" and not auto) else None
+            emo = emotion.emotion(text, role) if (role == "user" and not auto) else None
             uuid = o.get("uuid") or hashlib.sha1((text[:120]).encode()).hexdigest()
             h = hashlib.sha1(f"session|{sid}|{uuid}".encode()).hexdigest()
             meta = {

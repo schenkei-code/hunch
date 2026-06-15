@@ -31,7 +31,7 @@ def build_markdown():
     lines = []
     lines.append("---")
     lines.append("name: Hunch Live-Read")
-    lines.append("description: Was Hunch (lokaler proaktiver watcher) GRAD über Dominik beobachtet — live pattern-of-life, aktueller fokus, signale. Auto-exportiert, point-in-time.")
+    lines.append("description: Was Hunch (lokaler proaktiver watcher) GRAD über den user beobachtet — live pattern-of-life, aktueller fokus, signale. Auto-exportiert, point-in-time.")
     lines.append("metadata:")
     lines.append("  type: reference")
     lines.append("---")
@@ -43,7 +43,7 @@ def build_markdown():
     lines.append(f"**Top-Themen (Baseline):** {', '.join(summ.get('top_topics', [])[:10]) or '—'}")
     lines.append(f"**Wiederkehrende Entitäten:** {', '.join(ents) or '—'}")
     lines.append("")
-    lines.append(f"**Woran er GERADE dran is (recent focus):** {', '.join(det.get('focus', [])[:8]) or '(wenig live-daten)'}")
+    lines.append(f"**Woran GERADE gearbeitet wird (recent focus):** {', '.join(det.get('focus', [])[:8]) or '(wenig live-daten)'}")
     if highlights:
         lines.append(f"**Starke Verbindungen im Graph:** {' · '.join(highlights)}")
     lines.append("")
@@ -54,7 +54,7 @@ def build_markdown():
     else:
         lines.append("**Aktuelle Signale:** keine — alles im Normalbereich.")
     lines.append("")
-    lines.append("_Quelle: lokaler Hunch-Store (~/hunch). Point-in-time, kein Ersatz für dominik.md._")
+    lines.append("_Quelle: lokaler Hunch-Store. Point-in-time, kein Ersatz für das volle Profil._")
     return "\n".join(lines) + "\n"
 
 def export():

@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts REAL NOT NULL,
   source TEXT,                   -- telegram|whatsapp|session|profile|...
-  role TEXT,                     -- dominik|assistant|other
+  role TEXT,                     -- user|assistant|other
   text TEXT,
   meta TEXT,
   hash TEXT UNIQUE               -- dedupe
@@ -105,7 +105,7 @@ def add_event(type, source="watcher", app=None, title=None, path=None, text=None
              json.dumps(meta, ensure_ascii=False) if meta else None))
 
 # ---------- messages (dedupe via hash) ----------
-def add_message(text, source, role="dominik", ts=None, meta=None, hash=None):
+def add_message(text, source, role="user", ts=None, meta=None, hash=None):
     import hashlib
     h = hash or hashlib.sha1(f"{source}|{role}|{(text or '')[:400]}".encode("utf-8")).hexdigest()
     try:
@@ -127,7 +127,7 @@ def add_messages_bulk(rows):
     for r in rows:
         text = r.get("text")
         source = r.get("source")
-        role = r.get("role", "dominik")
+        role = r.get("role", "user")
         ts = r.get("ts") or time.time()
         meta = r.get("meta")
         h = r.get("hash") or hashlib.sha1(

@@ -129,9 +129,10 @@ def connect_path(a, b, max_hops=4):
 if __name__ == "__main__":
     import json, sys
     print("build:", json.dumps(build_graph()))
-    # demo dot-connect auf einem top-entity
+    # demo dot-connect auf dem ersten top-entity (falls vorhanden)
     s = store.get_profile("summary") or {}
-    focus = (s.get("top_entities") or ["Autoflasher"])[:1]
-    print("focus:", focus)
-    print("dot_connect:", json.dumps(dot_connect(focus), ensure_ascii=False))
-    print("neighbors:", json.dumps(neighbors(focus[0]), ensure_ascii=False))
+    focus = (s.get("top_entities") or [])[:1]
+    print("focus:", focus or "(noch keine entitaeten)")
+    if focus:
+        print("dot_connect:", json.dumps(dot_connect(focus), ensure_ascii=False))
+        print("neighbors:", json.dumps(neighbors(focus[0]), ensure_ascii=False))

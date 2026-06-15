@@ -78,10 +78,10 @@ def sync(full=False):
           f"{r['messages_inserted']} messages neu im store (von {r['messages_parsed']} geparsed)")
 
 def mood():
-    print("🎭 stimmungs-verlauf (emotion-proxy, nur Dominiks session-messages):")
+    print("🎭 stimmungs-verlauf (emotion-proxy, nur deine getippten session-messages):")
     with store.cursor() as con:
         rows = con.execute(
-            "SELECT meta FROM messages WHERE source='session' AND role='dominik' "
+            "SELECT meta FROM messages WHERE source='session' AND role='user' "
             "AND meta IS NOT NULL AND json_extract(meta,'$.auto') IS NULL").fetchall()
     if not rows:
         print("  (noch keine sessions gesynct — 'sync --full' laufen lassen)")

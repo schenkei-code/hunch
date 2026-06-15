@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Ingest — bestehende archive read-only als startfutter in den store (messages).
-Quellen: dominik.md (profil), memory/*.md, all-history (digests + txt). Self-contained,
-liest NUR, aendert nichts an den quellen. Dedupe via message-hash, schon-ingested via meta."""
+"""Ingest — eigene archive read-only als startfutter in den store (messages).
+Quellen kommen rein generisch aus config.INGEST_SOURCES (key = label, value = pfad).
+Jede quelle ist entweder eine datei ODER ein verzeichnis (wird automatisch erkannt).
+Self-contained, liest NUR, aendert nichts an den quellen. Dedupe via message-hash."""
 import os, time, json, pathlib, hashlib
 from . import config, store
 
@@ -73,27 +74,27 @@ def ingest_dir(d, source, exts=(".md", ".txt")):
     return n_files, n_chunks
 
 def run():
+    """generisch ueber config.INGEST_SOURCES: jeder eintrag {label: pfad}. pfad zeigt auf
+    eine datei (-> ingest_file) oder ein verzeichnis (-> ingest_dir, rglob md/txt).
+    keine festen quell-namen -> jeder user konfiguriert eigene quellen frei."""
     store.init_db()
     report = {}
-    # 1) dominik.md — kern-profil (eigene quelle, hoch gewichtet)
-    dp = config.INGEST_SOURCES["dominik_profile"]
-    report["dominik_profile_chunks"] = ingest_file(dp, source="dominik_profile", role="profile")
-    if pathlib.Path(dp).exists():
-        _mark_ingested([str(dp)])
-    # 2) memory/*.md
-    f, c = ingest_dir(config.INGEST_SOURCES["memory_dir"], source="memory")
-    report["memory_files"], report["memory_chunks"] = f, c
-    # 3) all-history (digests + txt)
-    f, c = ingest_dir(config.INGEST_SOURCES["all_history"], source="all_history")
-    report["history_files"], report["history_chunks"] = f, c
-    # markiere die dirs als ingested (file-level schon in ingest_dir gesammelt -> persistieren)
     allfiles = set()
-    for d in (config.INGEST_SOURCES["memory_dir"], config.INGEST_SOURCES["all_history"]):
-        dd = pathlib.Path(d)
-        if dd.exists():
-            for p in dd.rglob("*"):
-                if p.suffix.lower() in (".md", ".txt") and p.is_file():
-                    allfiles.add(str(p))
+    for label, path in (config.INGEST_SOURCES or {}).items():
+        p = pathlib.Path(path)
+        if not p.exists():
+            report[f"{label}_chunks"] = 0
+            continue
+        if p.is_file():
+            # einzeldatei (z.b. ein profil) -> als zusammenhaengende quelle, rolle 'profile'
+            report[f"{label}_chunks"] = ingest_file(p, source=label, role="profile")
+            allfiles.add(str(p))
+        else:
+            f, c = ingest_dir(p, source=label)
+            report[f"{label}_files"], report[f"{label}_chunks"] = f, c
+            for q in p.rglob("*"):
+                if q.suffix.lower() in (".md", ".txt") and q.is_file():
+                    allfiles.add(str(q))
     _mark_ingested(allfiles)
     store.set_profile("_last_ingest", time.time())
     report["total_messages"] = store.counts()["messages"]
