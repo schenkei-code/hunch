@@ -63,8 +63,16 @@ NUDGE_QUIET_HOURS = (int(_qh[0]), int(_qh[1]))
 NUDGE_MIN_GAP_MIN = int(_get("nudge_min_gap_min", "MACHINE_NUDGE_GAP", 90))
 CLAUDE_BIN = _get("claude_bin", "MACHINE_CLAUDE_BIN", "claude")
 NUDGE_MODEL = _get("nudge_model", "MACHINE_NUDGE_MODEL", "claude-sonnet-4-6")
+# LLM-formulierung der nudges via `claude -p`. Default AUS = 100% gratis/lokal (template-nudges).
+# Nur einschalten wenn du budget/credit hast (claude -p kann pay-as-you-go kosten).
+NUDGE_USE_LLM = str(_get("nudge_use_llm", "HUNCH_NUDGE_USE_LLM", "0")) in ("1", "true", "True")
 
 # ---- runtime / scheduler ----
 BRAIN_EVERY_MIN = int(_get("brain_every_min", "MACHINE_BRAIN_EVERY", 30))
 BASELINE_EVERY_MIN = int(_get("baseline_every_min", "MACHINE_BASELINE_EVERY", 180))
 PY_BIN = _get("py_bin", "MACHINE_PY", None)
+
+# ---- bridge: optionaler export von Hunch's erkenntnissen in ein externes memory (markdown) ----
+# nur gesetzt wenn in config.local.json/env vorhanden -> public repo bleibt clean.
+_mep = _get("memory_export_path", "HUNCH_MEMORY_EXPORT", None)
+MEMORY_EXPORT_PATH = pathlib.Path(_expand(_mep)) if _mep else None

@@ -24,39 +24,53 @@ def gate(signals, force=False):
         return None, f"erst {int(gap_min)}min seit letztem nudge (<{config.NUDGE_MIN_GAP_MIN})"
     return top, "passed"
 
-# ---------- impuls formulieren (claude -p, mit fallback) ----------
+# ---------- impuls formulieren (default: GRATIS lokale templates; optional LLM) ----------
 def craft_nudge(signal, focus, profile_summary, timeout=90):
-    ctx = {
-        "signal": signal["text"], "signal_type": signal["type"], "data": signal.get("data"),
-        "aktueller_fokus": focus[:5],
-        "top_themen": (profile_summary or {}).get("top_topics", [])[:8],
+    # 1) GRATIS-default: lokale template-nudges (kein claude -p, kostet nix). Mehrere phrasings, variiert.
+    d = signal.get("data", {}) or {}
+    import hashlib
+    def pick(opts):
+        seed = hashlib.md5(json.dumps(d, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        return opts[int(seed, 16) % len(opts)]
+    templates = {
+        "opportunity": [
+            f"spannender gedanke: '{d.get('bridge','')}' hängt grad stark mit dem zusammen woran du dran bist — vielleicht steckt da ne idee/lösung drin 🤔",
+            f"was wenn du das prinzip von '{d.get('bridge','')}' auf dein aktuelles thema überträgst? könnt passen.",
+            f"'{d.get('bridge','')}' und dein jetziger fokus liegen näher beieinander als man denkt — evtl. die brücke?",
+        ],
+        "topic_spike": [
+            f"'{d.get('term','')}' geht dir grad ordentlich durch den kopf… vielleicht lohnt's da kurz tiefer zu graben.",
+            f"du bist grad voll auf '{d.get('term','')}' — heißer moment um das festzuhalten/zu vertiefen.",
+        ],
+        "dormant_revival": [
+            f"'{d.get('entity','')}' taucht bei dir grad wieder auf — altes ding das nochmal dran is?",
+            f"du gräbst grad '{d.get('entity','')}' wieder aus. da war doch mal was — vielleicht der richtige zeitpunkt.",
+        ],
+        "unusual_hours": [signal["text"]],
     }
-    prompt = (
-        "Du bist 'Hunch' — ein stiller, proaktiver partner von " + config.USER_DESC + ". "
-        "Du hast folgendes signal aus seiner aktivitaet erkannt:\n"
-        + json.dumps(ctx, ensure_ascii=False)
-        + "\n\nFormuliere EINEN einzigen, kurzen impuls auf deutsch (max 2 saetze), der sich anfuehlt "
-        "wie SEIN eigener gedanke / ein zufaelliger geistesblitz — NICHT wie ein alarm oder 'ich hab "
-        "erkannt dass...'. locker, kleinschreibung, kein meta, kein 'als KI', kein 'die machine'. "
-        "stupse ihn nur sanft in richtung der verbindung/idee. nur der impuls-text, sonst nix."
-    )
-    try:
-        r = subprocess.run(
-            [config.CLAUDE_BIN, "-p", prompt, "--model", config.NUDGE_MODEL, "--strict-mcp-config"],
-            capture_output=True, text=True, timeout=timeout, encoding="utf-8")
-        out = (r.stdout or "").strip()
-        if out and len(out) > 8:
-            return out.split("\n\n")[0].strip()[:600], "claude"
-    except Exception as e:
-        pass
-    # fallback: aus dem signal-text einen lockeren stupser bauen
-    fb = {
-        "opportunity": f"spannender gedanke: {signal['data'].get('bridge','')} koennte grad zu deinem thema passen — vielleicht steckt da ne idee drin 🤔",
-        "topic_spike": f"dir scheint grad '{signal['data'].get('term','')}' im kopf rumzugehen… vielleicht lohnt's da kurz tiefer zu graben",
-        "dormant_revival": f"{signal['data'].get('entity','')} taucht bei dir grad wieder auf — altes ding das nochmal dran is?",
-        "unusual_hours": signal["text"],
-    }.get(signal["type"], signal["text"])
-    return fb, "fallback"
+    template = pick(templates.get(signal["type"], [signal["text"]]))
+
+    # 2) OPTIONAL: nur wenn explizit eingeschaltet (kostet evtl. claude -p / pay-as-you-go).
+    if config.NUDGE_USE_LLM:
+        ctx = {"signal": signal.get("text"), "signal_type": signal.get("type"), "data": d,
+               "aktueller_fokus": focus[:5],
+               "top_themen": (profile_summary or {}).get("top_topics", [])[:8]}
+        prompt = (
+            "Du bist 'Hunch' — ein stiller, proaktiver partner von " + config.USER_DESC + ". "
+            "Du hast folgendes signal aus seiner aktivitaet erkannt:\n" + json.dumps(ctx, ensure_ascii=False)
+            + "\n\nFormuliere EINEN kurzen impuls auf deutsch (max 2 saetze), der sich anfuehlt wie SEIN "
+            "eigener gedanke — NICHT wie ein alarm. locker, kleinschreibung, kein meta. nur der impuls-text."
+        )
+        try:
+            r = subprocess.run(
+                [config.CLAUDE_BIN, "-p", prompt, "--model", config.NUDGE_MODEL, "--strict-mcp-config"],
+                capture_output=True, text=True, timeout=timeout, encoding="utf-8")
+            out = (r.stdout or "").strip()
+            if out and len(out) > 8:
+                return out.split("\n\n")[0].strip()[:600], "claude"
+        except Exception:
+            pass
+    return template, "template"
 
 # ---------- telegram ----------
 def send_telegram(text):

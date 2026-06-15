@@ -7,7 +7,7 @@ non-blocking). Heartbeat in store.meta fuer health-check. Crasht nie: alles in t
   python -m hunch.run --install-task   -> Windows scheduled task (autostart at logon)
   python -m hunch.run --uninstall-task"""
 import sys, time, os, subprocess, json
-from . import config, store, watcher, baseline, graph, brain
+from . import config, store, watcher, baseline, graph, brain, bridge
 
 PY = config.PY_BIN or sys.executable
 
@@ -30,6 +30,13 @@ def health():
 def rebuild_profile():
     try:
         baseline.run(); graph.build_graph(rebuild=True); _heartbeat("baseline")
+        # bridge: Hunch's live-read ins externe memory exportieren (falls konfiguriert)
+        try:
+            ok, info = bridge.export()
+            if ok:
+                _heartbeat("bridge")
+        except Exception as e:
+            print("[bridge err]", e)
         return True
     except Exception as e:
         print("[rebuild err]", e); return False
