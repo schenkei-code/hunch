@@ -1,0 +1,12 @@
+{
+  "chat_id": "YOUR_TELEGRAM_CHAT_ID",
+  "bot_token": "OPTIONAL: dein Telegram-Bot-Token (oder via env MACHINE_BOT_TOKEN)",
+  "user_desc": "kurze beschreibung von dir (fuer den nudge-stil), z.b. 'dev, schreibt locker'",
+  "quiet_hours": [1, 8],
+  "nudge_min_score": 0.62,
+  "nudge_min_gap_min": 90,
+  "ingest_sources": {
+    "_hinweis": "optional: pfade zu eigenen markdown/text-archiven als startfutter",
+    "notes": "~/path/to/your/notes"
+  }
+}

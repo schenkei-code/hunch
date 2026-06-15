@@ -1,0 +1,18 @@
+# secrets + persoenliche config
+config.local.json
+.env
+# laufzeit-daten (lokal, nie ins repo)
+data/
+*.db
+*.db-wal
+*.db-shm
+runtime.pid
+# python
+__pycache__/
+*.pyc
+*.pyo
+# scratch
+*.log
+# private build-logs (enthalten persoenliche verifikations-daten)
+PROGRESS.md
+ROADMAP.md
