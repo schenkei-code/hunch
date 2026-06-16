@@ -75,6 +75,17 @@ GEMINI_MODEL = _get("gemini_model", "HUNCH_GEMINI_MODEL", "gemini-2.5-flash")
 CLAUDE_BIN = _get("claude_bin", "MACHINE_CLAUDE_BIN", "claude")
 NUDGE_MODEL = _get("nudge_model", "MACHINE_NUDGE_MODEL", "claude-sonnet-4-6")
 
+# ---- nudge-ZIEL: "agent" = impuls geht in eine inbox die der agent (Claude) liest und selbst
+# entscheidet was er dem user sagt | "channel" = klassisch an den user ueber den konfigurierten
+# ausgangs-channel. Default "channel" (allgemeines tool); persoenlich auf "agent" (Hunch = gehirn DES agents). ----
+NUDGE_TARGET = _get("nudge_target", "HUNCH_NUDGE_TARGET", "channel")
+# Welcher ausgangs-channel bei NUDGE_TARGET="channel": "telegram" (default, implementiert).
+# Erweiterbar (discord/slack/email/...) -> in brain.deliver_to_channel andocken. NICHT telegram-hardcoded.
+NUDGE_CHANNEL = _get("nudge_channel", "HUNCH_NUDGE_CHANNEL", "telegram")
+_aip = _get("agent_inbox_path", "HUNCH_AGENT_INBOX",
+            os.path.join(os.path.expanduser("~"), ".claude", "hunch-feed.jsonl"))
+AGENT_INBOX_PATH = pathlib.Path(_expand(_aip))
+
 # ---- runtime / scheduler ----
 BRAIN_EVERY_MIN = int(_get("brain_every_min", "MACHINE_BRAIN_EVERY", 30))
 BASELINE_EVERY_MIN = int(_get("baseline_every_min", "MACHINE_BASELINE_EVERY", 180))
