@@ -100,6 +100,39 @@ def detect_unusual_hours():
                  "data": {"hour": h, "share": round(share, 3)}}]
     return []
 
+def hypothesis(sig, focus):
+    """KAUSALE hypothese: verfolgt ein signal durch den graph zurueck -> WARUM + naechster schritt.
+    nutzt die entity-typen (person kann helfen / tool passt / topic uebertragbar). der unterschied
+    zwischen 'du denkst an X' (beobachtung) und 'X haengt an Y das dich blockiert, probier Z' (intuition)."""
+    typ = sig.get("type")
+    d = sig.get("data", {}) or {}
+    try:
+        if typ == "topic_spike":
+            term = d.get("term")
+            nbs = graph.neighbors(term, k=4)
+            strong = nbs[0][0] if nbs else None
+            if strong:
+                k = graph.kind_of(strong)
+                rolle = {"person": f"hat mit '{strong}' zu tun", "tool": f"braucht '{strong}'"}.get(
+                    k, f"gehoert zu '{strong}'")
+                return f"'{term}' {rolle} (staerkste graph-verbindung) — der eigentliche hebel liegt da."
+        elif typ == "opportunity":
+            bridge = d.get("bridge"); foc = (d.get("focus") or [None])[0]
+            if bridge and foc:
+                k = graph.kind_of(bridge)
+                return {"person": f"'{bridge}' (person) kam bei aehnlichem schon mal vor — evtl. kann der bei '{foc}' helfen",
+                        "tool": f"das prinzip/tool '{bridge}' koennte direkt auf '{foc}' passen",
+                        }.get(k, f"die loesung aus '{bridge}' ist evtl. auf '{foc}' uebertragbar")
+        elif typ == "dormant_revival":
+            ent = d.get("entity")
+            nbs = graph.neighbors(ent, k=3)
+            ctx = ", ".join(n for n, _ in nbs[:2])
+            if ctx:
+                return f"'{ent}' hing damals mit {ctx} zusammen — da knuepfst du wahrscheinlich wieder an."
+    except Exception:
+        pass
+    return ""
+
 def run(focus_override=None):
     focus = focus_override or recent_focus()
     signals = []
@@ -107,6 +140,10 @@ def run(focus_override=None):
     signals += detect_topic_spikes()
     signals += detect_dormant_revival()
     signals += detect_unusual_hours()
+    for s in signals:                       # kausale hypothese an jedes signal haengen
+        h = hypothesis(s, focus)
+        if h:
+            s["hypothesis"] = h
     signals.sort(key=lambda s: -s["score"])
     return {"focus": focus, "signals": signals}
 

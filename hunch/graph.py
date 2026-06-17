@@ -16,6 +16,7 @@ Liebe Lieber Lieben Hallo Servus Wochenende Vormittag Nachmittag Mittag Mfg Lg V
 Montag Dienstag Mittwoch Donnerstag Freitag Samstag Sonntag
 Jetzt Lass Nicht Doch Klar Genau Sorry Passt Okay Gut Mach Schau Halt Eben Mal Bisschen
 Dann Wenn Also Sobald Schon Noch Hier Dort Damit Dabei Sowas Etwas Irgendwas Alles Nichts
+Google Chrome Edge Firefox Safari Browser Live Online Offline Desktop Mobile Window Tab Button Click
 """.split() + ["grüße", "grüßen", "grüss", "für", "über"])
 
 # entitaet = grossbuchstaben-start, multiword NUR ueber echte leerzeichen (NICHT ueber zeilenumbrueche
@@ -121,6 +122,12 @@ def _name(eid):
     with store.cursor() as con:
         r = con.execute("SELECT name FROM entities WHERE id=?", (eid,)).fetchone()
         return r["name"] if r else None
+
+def kind_of(name):
+    """typ einer entitaet (person/tool/topic) — fuer kausale hypothesen ('person X kann helfen')."""
+    with store.cursor() as con:
+        r = con.execute("SELECT kind FROM entities WHERE norm=?", ((name or "").strip().lower(),)).fetchone()
+        return r["kind"] if r else "topic"
 
 def neighbors(name, k=8):
     eid = _eid(name)

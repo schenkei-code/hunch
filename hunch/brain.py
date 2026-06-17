@@ -57,6 +57,15 @@ def craft_nudge(signal, focus, profile_summary, timeout=90):
         ctx = {"signal": signal.get("text"), "signal_type": signal.get("type"), "data": d,
                "aktueller_fokus": focus[:5],
                "top_themen": (profile_summary or {}).get("top_topics", [])[:8]}
+        # KAUSALE hypothese (warum + naechster schritt) -> der impuls soll die URSACHE ansprechen,
+        # nicht nur die beobachtung. das is der sprung von "du denkst an X" zu echter intuition.
+        hypo = signal.get("hypothesis")
+        if hypo:
+            ctx["kausale_hypothese"] = hypo
+        _kausal_hint = ("\n\nWICHTIG: nutze die 'kausale_hypothese' falls vorhanden — sprich nicht nur "
+                        "die beobachtung an, sondern die wahrscheinliche URSACHE + den konkreten naechsten "
+                        "schritt ('du machst X, das haengt an Y, probier Z'). NICHT nur 'du denkst an X'."
+                        ) if hypo else ""
         if (config.NUDGE_TARGET or "").lower() == "agent":
             # ZIEL AGENT: ausfuehrlicher interner impuls (kein user-text) — voller kontext + reasoning.
             prompt = (
@@ -82,6 +91,7 @@ def craft_nudge(signal, focus, profile_summary, timeout=90):
                 "Kein alarm, kein support-/coach-ton, kein meta, kein 'als KI'. "
                 "Locker, kleinschreibung, KEINE emojis. NUR der impuls-text, sonst nichts."
             )
+        prompt += _kausal_hint           # kausale hypothese -> ursache + naechster schritt ansprechen
         out = _run_llm(engine, prompt, timeout)
         if out and len(out) > 8:
             return out, engine
