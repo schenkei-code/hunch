@@ -27,7 +27,8 @@ MAX_PER_DOC = 6   # max entitaeten pro message fuer edges
 _BADLEAD = set("ihre ihr ihrem ihrer ihres ihren guten die der das den dem ein eine aber dabei damit "
                "diese dieser dieses mein dein sein unser jede jeder jedes alle viele neue gute erste "
                "letzte vielen diesen diesem alle paar nur noch schon dann wenn also sobald falls weil "
-               "sehr lieben liebe lieber besten freundlichen".split())
+               "sehr lieben liebe lieber besten freundlichen unsere unser unseren unserem unserer "
+               "euer eure euren eurem meine meinen welche welcher welches".split())
 _BADWORD = set("nachricht snapshot messages message dokument browser problem datei status update "
                "guten tag hallo danke ungelesen dank vielen erste letzte neue gesendet empfangen "
                "antwort frage info bild video foto link".split())
@@ -45,6 +46,39 @@ def extract_entities(text):
             continue
         out.append(m)
     return out
+
+# ---- entity-typ-inferenz (person / tool / topic) -> semantische struktur statt "alles topic" ----
+_TECH = set("""
+python javascript typescript java golang go rust ruby php swift kotlin react vue svelte angular node
+nodejs deno bun docker kubernetes git github gitlab bitbucket sql nosql json yaml toml api rest graphql
+html css scss tailwind ffmpeg sqlite postgres postgresql mysql mongodb redis nginx apache linux ubuntu
+windows macos bash zsh powershell numpy pandas pytorch tensorflow sklearn claude chatgpt gpt gemini llm
+npm pip cargo vite webpack esbuild rollup vercel netlify aws azure gcp supabase firebase stripe openai
+anthropic huggingface ollama vllm whisper langchain figma photoshop blender unity unreal obsidian notion
+""".split())
+_PERSON_RE = re.compile(r"^[A-ZÄÖÜ][a-zäöüß]{2,}\s[A-ZÄÖÜ][a-zäöüß]{2,}$")   # 'Vorname Nachname'
+
+def infer_kind(name):
+    n = (name or "").strip()
+    nl = n.lower()
+    # tool/tech: bekannter tech-begriff, datei-endung, oder kurzes all-caps-akronym (API/JSON/SQL)
+    if nl in _TECH or re.search(r"\.(py|js|ts|tsx|md|json|sh|sql|yml|yaml|toml|css|html)$", nl) \
+            or (n.isupper() and 2 <= len(n) <= 5):
+        return "tool"
+    # person: 'Vorname Nachname' (zwei grossgeschriebene, beide rein-alphabetisch) — aber NICHT
+    # wenn das erste wort ein generisches/fuehrungs-wort is ('Unsere Buerozeiten', 'Ihrem Anliegen')
+    toks = nl.split()
+    if _PERSON_RE.match(n) and toks and toks[0] not in _BADLEAD and toks[0] not in NOISE:
+        return "person"
+    return "topic"
+
+def classify_entities():
+    """setzt fuer alle entitaeten den typ (person/tool/topic) per heuristik. batch-update."""
+    with store.cursor() as con:
+        rows = con.execute("SELECT id, name FROM entities").fetchall()
+        ups = [(infer_kind(r["name"]), r["id"]) for r in rows]
+        con.executemany("UPDATE entities SET kind=? WHERE id=?", ups)
+    return len(ups)
 
 def build_graph(limit_docs=6000, rebuild=False):
     store.init_db()
@@ -74,7 +108,8 @@ def build_graph(limit_docs=6000, rebuild=False):
                 a, b = sorted((ids[sal[i]], ids[sal[j]]))
                 edges[(a, b)] += 1
     store.add_edges_bulk(((a, b, w) for (a, b), w in edges.items()), kind="co")
-    return {"nodes": len(keep), "edges": len(edges), "docs": len(docs)}
+    n_typed = classify_entities()   # person/tool/topic taggen -> semantische struktur
+    return {"nodes": len(keep), "edges": len(edges), "docs": len(docs), "typed": n_typed}
 
 def _eid(name):
     norm = name.strip().lower()
@@ -111,7 +146,13 @@ def dot_connect(focus_names, k=6):
                 "WHERE (src=? OR dst=?) AND kind IN ('co','seed')", (fid, fid, fid)):
                 if r["nb"] not in focus_ids:
                     score[r["nb"]] += r["weight"]
-    return [{"entity": _name(nb), "strength": round(w, 1)} for nb, w in score.most_common(k)]
+    out = []
+    with store.cursor() as con:
+        for nb, w in score.most_common(k):
+            row = con.execute("SELECT name, kind FROM entities WHERE id=?", (nb,)).fetchone()
+            if row:
+                out.append({"entity": row["name"], "kind": row["kind"], "strength": round(w, 1)})
+    return out
 
 def connect_path(a, b, max_hops=4):
     """kuerzeste verbindung zwischen zwei entitaeten (BFS) — 'wie haengt A mit B zusammen'."""
