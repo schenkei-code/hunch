@@ -3,7 +3,7 @@
 Entitaeten = nodes, co-occurrence = edges. dot_connect() findet verbindungen zwischen
 aktuellem fokus und alten nodes („das prinzip aus projekt X passt auf dein aktuelles Y")."""
 import re, collections, heapq
-from . import store, baseline
+from . import store, baseline, config
 
 # generische woerter die KEINE entitaet sind
 NOISE = set(s.lower() for s in """
@@ -14,6 +14,8 @@ The This That What When Where Here There Just Like Make Done Next Step Run Build
 Bitte Ihnen Ihren Gerne Gruss Gruessen Gruesse Gruss Freundlichen Sehr Geehrte Geehrter Geehrten
 Liebe Lieber Lieben Hallo Servus Wochenende Vormittag Nachmittag Mittag Mfg Lg Vielen Besten
 Montag Dienstag Mittwoch Donnerstag Freitag Samstag Sonntag
+Jetzt Lass Nicht Doch Klar Genau Sorry Passt Okay Gut Mach Schau Halt Eben Mal Bisschen
+Dann Wenn Also Sobald Schon Noch Hier Dort Damit Dabei Sowas Etwas Irgendwas Alles Nichts
 """.split() + ["grüße", "grüßen", "grüss", "für", "über"])
 
 # entitaet = grossbuchstaben-start, multiword NUR ueber echte leerzeichen (NICHT ueber zeilenumbrueche
@@ -34,7 +36,7 @@ def extract_entities(text):
     out = []
     for m in CAP.findall(text or ""):
         ml = m.lower()
-        if ml in NOISE or len(m) < 4:
+        if ml in NOISE or ml in config.USER_NAMES or len(m) < 4:
             continue
         toks = ml.split()
         if toks[0] in _BADLEAD:                  # 'Ihre Nachricht', 'Guten Tag'

@@ -6,14 +6,22 @@ Robust gegen duenne live-daten: degradiert sauber, opportunities greifen sofort.
 import time, math, datetime, collections
 from . import store, graph
 
+# LIVE-quellen = echte aktuelle aktivitaet (konversation). Massen-INGEST (archive/vault/device/
+# claude-mem) wird fuer die RECENT-erkennung AUSGESCHLOSSEN — sonst feuern signale auf alten
+# importierten dateien (deren mtime "neu" aussieht) statt auf dem was du GERADE tust.
+LIVE_SOURCES = ("session",)
+_LIVE_IN = "(" + ",".join("?" * len(LIVE_SOURCES)) + ")"
+
 def recent_focus(hours=8, k=8):
-    """woran arbeitet er GRAD: entitaeten aus letzten events (fenstertitel) + messages."""
+    """woran arbeitet er GRAD: entitaeten aus letzten events (fenstertitel) + LIVE-messages."""
     since = time.time() - hours * 3600
     texts = []
     with store.cursor() as con:
         for r in con.execute("SELECT title FROM events WHERE ts>? AND title IS NOT NULL ORDER BY ts DESC LIMIT 200", (since,)):
             texts.append(r["title"])
-        for r in con.execute("SELECT text FROM messages WHERE ts>? ORDER BY ts DESC LIMIT 80", (since,)):
+        for r in con.execute(
+                f"SELECT text FROM messages WHERE ts>? AND source IN {_LIVE_IN} ORDER BY ts DESC LIMIT 80",
+                (since, *LIVE_SOURCES)):
             texts.append(r["text"])
     freq = collections.Counter()
     for t in texts:
@@ -45,7 +53,8 @@ def detect_topic_spikes(hours=8):
     with store.cursor() as con:
         for r in con.execute("SELECT title FROM events WHERE ts>? AND title IS NOT NULL", (since,)):
             rec.update(_tokens(r["title"]))
-        for r in con.execute("SELECT text FROM messages WHERE ts>?", (since,)):
+        for r in con.execute(
+                f"SELECT text FROM messages WHERE ts>? AND source IN {_LIVE_IN}", (since, *LIVE_SOURCES)):
             rec.update(_tokens(r["text"]))
     for term, n in rec.most_common(15):
         if n >= 4:

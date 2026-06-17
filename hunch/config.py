@@ -46,6 +46,9 @@ def _fallback_dotenv_token():
 BOT_TOKEN = _get("bot_token", "MACHINE_BOT_TOKEN") or _fallback_dotenv_token()
 CHAT_ID = _get("chat_id", "MACHINE_CHAT_ID")            # KEIN persoenlicher default
 USER_DESC = _get("user_desc", "MACHINE_USER_DESC", "der user")  # fuer den nudge-stil
+# eigene namen/aliase des users -> werden aus dem graph gefiltert (der eigene name wird sonst zum
+# hub der mit ALLEM verbunden is = rauschen). leer im repo (datenfrei), per config gesetzt.
+USER_NAMES = set(n.strip().lower() for n in (_L.get("user_names") or []) if n and n.strip())
 
 # ---- watcher ----
 WATCH_INTERVAL_SEC = int(_get("watch_interval", "MACHINE_WATCH_INTERVAL", 4))
