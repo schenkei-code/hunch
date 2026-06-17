@@ -6,7 +6,7 @@ Self-contained, liest NUR, aendert nichts an den quellen. Dedupe via message-has
 import os, time, json, pathlib, hashlib
 from . import config, store
 
-MAX_CHUNKS = 8000          # globaler deckel
+MAX_CHUNKS = config.MAX_INGEST_CHUNKS   # globaler deckel (config-steuerbar: max_ingest_chunks)
 CHUNK_MIN, CHUNK_MAX = 120, 1600
 
 def _chunks(text):

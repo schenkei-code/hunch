@@ -11,15 +11,21 @@ Users User Bild Video Problem Nachricht Ihre Nachrichten Foto Link Code Tool Plu
 Hallo Danke Heute Morgen Abend Tag Woche Monat Jahr Stunde Minute Mail Email Account Status Update
 Telegram Chat Channel Session Assistant System Prompt Test Beispiel Frage Antwort Info Dabei Damit
 The This That What When Where Here There Just Like Make Done Next Step Run Build Okay
-""".split())
+Bitte Ihnen Ihren Gerne Gruss Gruessen Gruesse Gruss Freundlichen Sehr Geehrte Geehrter Geehrten
+Liebe Lieber Lieben Hallo Servus Wochenende Vormittag Nachmittag Mittag Mfg Lg Vielen Besten
+Montag Dienstag Mittwoch Donnerstag Freitag Samstag Sonntag
+""".split() + ["grüße", "grüßen", "grüss", "für", "über"])
 
-CAP = re.compile(r"\b([A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9]{2,}(?:\s[A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9]+){0,2})\b")
+# entitaet = grossbuchstaben-start, multiword NUR ueber echte leerzeichen (NICHT ueber zeilenumbrueche
+# -> sonst werden mail-signaturen wie "Gruessen\nMarkus" zu falschen entitaeten verklebt)
+CAP = re.compile(r"\b([A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9]{2,}(?:[^\S\r\n][A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9]+){0,2})\b")
 MAX_PER_DOC = 6   # max entitaeten pro message fuer edges
 
 # fuehrende generische woerter -> multiword ist keine echte entitaet
-_BADLEAD = set("ihre ihr guten die der das den dem ein eine aber dabei damit diese dieser dieses "
-               "mein dein sein unser jede jeder jedes alle viele neue gute erste letzte vielen "
-               "diesen diesem alle paar nur noch schon".split())
+_BADLEAD = set("ihre ihr ihrem ihrer ihres ihren guten die der das den dem ein eine aber dabei damit "
+               "diese dieser dieses mein dein sein unser jede jeder jedes alle viele neue gute erste "
+               "letzte vielen diesen diesem alle paar nur noch schon dann wenn also sobald falls weil "
+               "sehr lieben liebe lieber besten freundlichen".split())
 _BADWORD = set("nachricht snapshot messages message dokument browser problem datei status update "
                "guten tag hallo danke ungelesen dank vielen erste letzte neue gesendet empfangen "
                "antwort frage info bild video foto link".split())
@@ -85,7 +91,7 @@ def neighbors(name, k=8):
     with store.cursor() as con:
         rows = con.execute(
             "SELECT CASE WHEN src=? THEN dst ELSE src END nb, weight FROM edges "
-            "WHERE (src=? OR dst=?) AND kind='co' ORDER BY weight DESC LIMIT ?",
+            "WHERE (src=? OR dst=?) AND kind IN ('co','seed') ORDER BY weight DESC LIMIT ?",
             (eid, eid, eid, k)).fetchall()
     return [(_name(r["nb"]), r["weight"]) for r in rows]
 
@@ -99,7 +105,7 @@ def dot_connect(focus_names, k=6):
         for fid in focus_ids:
             for r in con.execute(
                 "SELECT CASE WHEN src=? THEN dst ELSE src END nb, weight FROM edges "
-                "WHERE (src=? OR dst=?) AND kind='co'", (fid, fid, fid)):
+                "WHERE (src=? OR dst=?) AND kind IN ('co','seed')", (fid, fid, fid)):
                 if r["nb"] not in focus_ids:
                     score[r["nb"]] += r["weight"]
     return [{"entity": _name(nb), "strength": round(w, 1)} for nb, w in score.most_common(k)]

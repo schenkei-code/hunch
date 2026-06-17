@@ -55,6 +55,9 @@ BROWSER_HISTORY_EVERY_SEC = 300
 
 # ---- ingest quellen (read-only startfutter; default leer -> user konfiguriert) ----
 INGEST_SOURCES = {k: pathlib.Path(_expand(v)) for k, v in (_L.get("ingest_sources") or {}).items()}
+# obergrenze fuer ingest-chunks (gegen ausufernde stores). default 8000; per config hochsetzbar
+# wenn man bewusst ein grosses wissens-archiv (z.b. einen vault) komplett reinziehen will.
+MAX_INGEST_CHUNKS = int(_get("max_ingest_chunks", "HUNCH_MAX_INGEST_CHUNKS", 8000))
 
 # ---- session-sync quellen: Claude-Code-transcripts (jsonl). generischer default fuer
 # JEDEN Claude-Code-user -> ~/.claude/projects. zusatzpfade via config.local.json moeglich. ----
