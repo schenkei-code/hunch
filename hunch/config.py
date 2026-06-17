@@ -59,6 +59,26 @@ INGEST_SOURCES = {k: pathlib.Path(_expand(v)) for k, v in (_L.get("ingest_source
 # wenn man bewusst ein grosses wissens-archiv (z.b. einen vault) komplett reinziehen will.
 MAX_INGEST_CHUNKS = int(_get("max_ingest_chunks", "HUNCH_MAX_INGEST_CHUNKS", 8000))
 
+# ---- device-weiter ingest: welche datei-typen, was wird ausgeschlossen ----
+# erweiterbar per config (ingest_exts / ingest_exclude / ingest_max_file_mb / ingest_code_exts).
+_DEFAULT_EXTS = (".md .txt .markdown .rst .org .text "                      # docs/notes
+                 ".py .js .ts .jsx .tsx .java .go .rs .rb .php .c .h .cpp .cs .swift .kt "  # code
+                 ".sh .bash .sql .html .css .scss .vue .svelte "
+                 ".json .yaml .yml .toml .ini .cfg .conf .env.example .xml .csv .tsv").split()
+INGEST_EXTS = tuple((_L.get("ingest_exts") or _DEFAULT_EXTS))
+# code-typen separat markieren -> graph-extraktion kann sie ueberspringen (kein variablen-namen-rauschen)
+_DEFAULT_CODE = ".py .js .ts .jsx .tsx .java .go .rs .rb .php .c .h .cpp .cs .swift .kt .sh .bash .sql .vue .svelte .css .scss".split()
+INGEST_CODE_EXTS = set(_L.get("ingest_code_exts") or _DEFAULT_CODE)
+# verzeichnisse die beim walk komplett uebersprungen werden (junk -> wuerde store + graph zumuellen)
+_DEFAULT_EXCLUDE = ("node_modules .git __pycache__ .venv venv env .cache cache dist build .next "
+                    "target .gradle .idea .vscode .pytest_cache .mypy_cache site-packages "
+                    "vendor bower_components .tox coverage .terraform graphify-out .sandbox "
+                    "Crashpad Cache GPUCache logs tmp .tmp chroma backups AppData "
+                    "browser computer-use ms-playwright .git-credential-cache .npm .bun .cargo "
+                    "Library Application .claude OneDrive .ollama").split()
+INGEST_EXCLUDE = set(_L.get("ingest_exclude") or _DEFAULT_EXCLUDE)
+INGEST_MAX_FILE_MB = float(_get("ingest_max_file_mb", "HUNCH_INGEST_MAX_FILE_MB", 2.0))
+
 # ---- session-sync quellen: Claude-Code-transcripts (jsonl). generischer default fuer
 # JEDEN Claude-Code-user -> ~/.claude/projects. zusatzpfade via config.local.json moeglich. ----
 _default_sessions = [os.path.join(os.path.expanduser("~"), ".claude", "projects")]

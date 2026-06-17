@@ -52,7 +52,8 @@ def build_graph(limit_docs=6000, rebuild=False):
     freq = collections.Counter()
     docs = []
     with store.cursor() as con:
-        rows = con.execute("SELECT text FROM messages LIMIT ?", (limit_docs,)).fetchall()
+        # code-dateien (role='code') NICHT in die entity-extraktion -> kein variablen-namen-rauschen
+        rows = con.execute("SELECT text FROM messages WHERE role IS NULL OR role != 'code' LIMIT ?", (limit_docs,)).fetchall()
         rows += con.execute("SELECT title AS text FROM events WHERE title IS NOT NULL LIMIT 2000").fetchall()
     for r in rows:
         ents = extract_entities(r["text"])
