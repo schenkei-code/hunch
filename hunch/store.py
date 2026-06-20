@@ -51,6 +51,12 @@ CREATE TABLE IF NOT EXISTS edges (
   PRIMARY KEY (src, dst, kind)
 );
 
+CREATE TABLE IF NOT EXISTS entity_vecs (
+  entity_id INTEGER PRIMARY KEY, -- semantischer vektor (gemini-embedding-001) je entitaet
+  vec BLOB,
+  updated REAL
+);
+
 CREATE TABLE IF NOT EXISTS profile (
   key TEXT PRIMARY KEY,
   value TEXT,                    -- json
@@ -219,6 +225,31 @@ def clear_edges(kind=None):
             con.execute("DELETE FROM edges WHERE kind=?", (kind,))
         else:
             con.execute("DELETE FROM edges")
+
+# ---------- entity-vektoren (semantik) ----------
+import array as _array
+
+def set_entity_vecs_bulk(rows):
+    """rows = iterable von (entity_id, vec_list). speichert als float32-BLOB."""
+    now = time.time()
+    payload = [(eid, _array.array('f', vec).tobytes(), now) for eid, vec in rows]
+    with cursor() as con:
+        con.executemany("INSERT INTO entity_vecs(entity_id,vec,updated) VALUES(?,?,?) "
+                        "ON CONFLICT(entity_id) DO UPDATE SET vec=excluded.vec, updated=excluded.updated",
+                        payload)
+
+def get_entity_vecs():
+    """-> dict {entity_id: [float,...]}."""
+    out = {}
+    with cursor() as con:
+        for r in con.execute("SELECT entity_id, vec FROM entity_vecs"):
+            a = _array.array('f'); a.frombytes(r["vec"]); out[r["entity_id"]] = a.tolist()
+    return out
+
+def entity_vec_ids():
+    """ids die schon einen vektor haben (fuer inkrementelles embedden)."""
+    with cursor() as con:
+        return {r["entity_id"] for r in con.execute("SELECT entity_id FROM entity_vecs")}
 
 # ---------- profile ----------
 def set_profile(key, value):

@@ -2,8 +2,12 @@
 """Mini-Wissensgraph + Dot-Connecting — eigenbau, kein graphify/obsidian.
 Entitaeten = nodes, co-occurrence = edges. dot_connect() findet verbindungen zwischen
 aktuellem fokus und alten nodes („das prinzip aus projekt X passt auf dein aktuelles Y")."""
-import re, collections, heapq
+import re, collections, heapq, math
 from . import store, baseline, config
+try:
+    from . import embed as _embed
+except Exception:
+    _embed = None
 
 # generische woerter die KEINE entitaet sind
 NOISE = set(s.lower() for s in """
@@ -110,7 +114,80 @@ def build_graph(limit_docs=6000, rebuild=False):
                 edges[(a, b)] += 1
     store.add_edges_bulk(((a, b, w) for (a, b), w in edges.items()), kind="co")
     n_typed = classify_entities()   # person/tool/topic taggen -> semantische struktur
-    return {"nodes": len(keep), "edges": len(edges), "docs": len(docs), "typed": n_typed}
+    n_emb = embed_entities(rebuild=rebuild)   # semantische vektoren (gemini-embedding-001 via OAuth)
+    return {"nodes": len(keep), "edges": len(edges), "docs": len(docs), "typed": n_typed, "embedded": n_emb}
+
+
+def embed_entities(rebuild=False, batch=400):
+    """embedded entity-namen semantisch (gemini-embedding-001 via OAuth). inkrementell:
+    nur entitaeten ohne vektor. faellt still aus wenn embed nich verfuegbar/kein OAuth."""
+    if _embed is None or not getattr(config, "SEMANTIC_ON", True):
+        return 0
+    with store.cursor() as con:
+        # NUR echte graph-knoten embedden (die mit kanten) — nich die 20k+ seltenen rausch-entitaeten
+        rows = con.execute(
+            "SELECT id, name FROM entities WHERE id IN "
+            "(SELECT src FROM edges UNION SELECT dst FROM edges)").fetchall()
+    have = set() if rebuild else store.entity_vec_ids()
+    todo = [(r["id"], r["name"]) for r in rows if r["id"] not in have]
+    if not todo:
+        return 0
+    done = 0
+    for i in range(0, len(todo), batch):
+        chunk = todo[i:i+batch]
+        vecs = _embed.embed([n for _, n in chunk])
+        if not vecs or len(vecs) != len(chunk):
+            break  # OAuth/embed-fail -> graph laeuft auf co-occurrence weiter
+        store.set_entity_vecs_bulk((eid, v) for (eid, _), v in zip(chunk, vecs))
+        done += len(chunk)
+    return done
+
+
+def semantic_neighbors(focus_names, k=6, min_sim=0.0):
+    """semantische bruecken: entitaeten die dem fokus inhaltlich aehneln (auch OHNE co-occurrence).
+    ergaenzt dot_connect. nutzt gespeicherte entity-vektoren. [] wenn keine vektoren da."""
+    if _embed is None:
+        return []
+    vecs = store.get_entity_vecs()
+    if not vecs:
+        return []
+    focus_ids = set(filter(None, (_eid(n) for n in focus_names)))
+    fv = [vecs[i] for i in focus_ids if i in vecs]
+    if not fv:
+        return []
+    # zentroid des fokus
+    dim = len(fv[0]); cen = [sum(v[d] for v in fv)/len(fv) for d in range(dim)]
+    n = math.sqrt(sum(x*x for x in cen)) or 1.0; cen = [x/n for x in cen]
+    # fokus-namen-tokens fuer dubletten-filter (sonst kommen nur string-varianten:
+    # "React"->"ReactJS","ReactRouter"). echte BRUECKEN = andere-aber-verwandte themen.
+    foc_norms = [(_name(i) or "").strip().lower() for i in focus_ids]
+    foc_tokens = set(t for fn in foc_norms for t in re.findall(r"\w+", fn) if len(t) > 2)
+
+    def _is_variant(name):
+        nm = (name or "").strip().lower()
+        for fn in foc_norms:
+            if fn and (fn in nm or nm in fn):   # substring-variante
+                return True
+        toks = set(re.findall(r"\w+", nm))
+        return bool(toks & foc_tokens)          # teilt ein bedeutungs-token mit dem fokus
+
+    scored = []
+    for eid, v in vecs.items():
+        if eid in focus_ids:
+            continue
+        s = sum(a*b for a, b in zip(cen, v))
+        if s >= min_sim and s < 0.985:          # 0.985+ = quasi-identisch -> raus
+            scored.append((s, eid))
+    scored.sort(reverse=True)
+    out = []
+    with store.cursor() as con:
+        for s, eid in scored:
+            row = con.execute("SELECT name, kind FROM entities WHERE id=?", (eid,)).fetchone()
+            if row and not _is_variant(row["name"]):
+                out.append({"entity": row["name"], "kind": row["kind"], "sim": round(float(s), 3)})
+                if len(out) >= k:
+                    break
+    return out
 
 def _eid(name):
     norm = name.strip().lower()
@@ -154,12 +231,21 @@ def dot_connect(focus_names, k=6):
                 if r["nb"] not in focus_ids:
                     score[r["nb"]] += r["weight"]
     out = []
+    seen = set()
     with store.cursor() as con:
         for nb, w in score.most_common(k):
             row = con.execute("SELECT name, kind FROM entities WHERE id=?", (nb,)).fetchone()
             if row:
                 out.append({"entity": row["name"], "kind": row["kind"], "strength": round(w, 1)})
-    return out
+                seen.add(row["name"])
+    # semantische bruecken dazu (bedeutung statt exaktem co-occurrence) — fuellt auf bis k
+    for sb in semantic_neighbors(focus_names, k=k):
+        if sb["entity"] not in seen:
+            sb["strength"] = round(sb.pop("sim") * 10, 1)  # sim 0..1 -> vergleichbare skala
+            sb["via"] = "semantik"
+            out.append(sb); seen.add(sb["entity"])
+    out.sort(key=lambda x: -x["strength"])
+    return out[:max(k, 6)]
 
 def connect_path(a, b, max_hops=4):
     """kuerzeste verbindung zwischen zwei entitaeten (BFS) — 'wie haengt A mit B zusammen'."""

@@ -66,7 +66,7 @@ def craft_nudge(signal, focus, profile_summary, timeout=90):
                         "die beobachtung an, sondern die wahrscheinliche URSACHE + den konkreten naechsten "
                         "schritt ('du machst X, das haengt an Y, probier Z'). NICHT nur 'du denkst an X'."
                         ) if hypo else ""
-        if (config.NUDGE_TARGET or "").lower() == "agent":
+        if (config.NUDGE_TARGET or "").lower() in ("agent", "tmux"):
             # ZIEL AGENT: ausfuehrlicher interner impuls (kein user-text) — voller kontext + reasoning.
             prompt = (
                 "Du bist 'Hunch' — das gedaechtnis- und anticipation-modul DES AGENTS (Claude), der eng mit "
@@ -120,7 +120,7 @@ def _run_llm(engine, prompt, timeout):
                  and not ln.strip().lower().startswith(_NOISE_PREFIX)]
         text = " ".join(lines).strip()
         # agent-impulse duerfen ausfuehrlich sein; channel/user-nudges sind eh per prompt kurz
-        cap = 2400 if (config.NUDGE_TARGET or "").lower() == "agent" else 600
+        cap = 2400 if (config.NUDGE_TARGET or "").lower() in ("agent", "tmux") else 600
         return text[:cap] if text else None
     except Exception:
         return None
@@ -137,6 +137,22 @@ def deliver_to_agent(text, signal):
         with open(p, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
         return True, "agent-inbox"
+    except Exception as e:
+        return False, str(e)[:80]
+
+# ---------- zustellung DIREKT in die agent-terminal-session (ACP-artiger direkt-kanal) ----------
+def deliver_to_tmux(text):
+    """Tippt den impuls direkt in die tmux-session des agenten — ein kanal NUR zwischen nudge und
+    agent, ohne umweg ueber inbox/channel. config.TMUX_TARGET = tmux-session-name des agenten.
+    Text wird auf eine zeile reduziert (kein vorzeitiges Enter) + als literal gesendet, dann Enter."""
+    sess = config.TMUX_TARGET
+    if not sess:
+        return False, "kein TMUX_TARGET gesetzt"
+    try:
+        msg = "[Hunch] " + " ".join((text or "").split())
+        subprocess.run(["tmux", "send-keys", "-t", sess, "-l", msg], check=True, timeout=10)
+        subprocess.run(["tmux", "send-keys", "-t", sess, "Enter"], check=True, timeout=10)
+        return True, f"tmux:{sess}"
     except Exception as e:
         return False, str(e)[:80]
 
@@ -182,9 +198,12 @@ def run(force=False, dry=False):
     if dry:
         result["nudged"] = False; result["dry"] = True
         return result
-    # ZIEL: "agent" -> inbox (agent liest+entscheidet) | sonst -> user ueber konfigurierten channel
-    if config.NUDGE_TARGET == "agent":
+    # ZIEL: "agent"->inbox(jsonl) | "tmux"->direkt in die agent-terminal-session | sonst->user-channel
+    _tgt = (config.NUDGE_TARGET or "").lower()
+    if _tgt == "agent":
         ok, info = deliver_to_agent(text, chosen)
+    elif _tgt == "tmux":
+        ok, info = deliver_to_tmux(text)
     else:
         ok, info = deliver_to_channel(text)
     if ok:

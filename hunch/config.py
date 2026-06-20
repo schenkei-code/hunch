@@ -5,13 +5,15 @@ Veroeffentlichbar — die echten werte liegen NUR in config.local.json (nicht im
 import os, json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT / "data"
-DATA_DIR.mkdir(exist_ok=True)
+# DATA_DIR pro-instanz override (fuer multi-agent: jeder agent eigene db).
+DATA_DIR = pathlib.Path(os.path.expanduser(os.environ["HUNCH_DATA_DIR"])) if os.environ.get("HUNCH_DATA_DIR") else ROOT / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "hunch.db"
 
 # ---- lokale config (gitignored) als quelle fuer alles persoenliche ----
 def _load_local():
-    p = ROOT / "config.local.json"
+    # config-pfad override (multi-agent: eigene config pro agent), sonst ROOT/config.local.json
+    p = pathlib.Path(os.path.expanduser(os.environ["HUNCH_CONFIG"])) if os.environ.get("HUNCH_CONFIG") else ROOT / "config.local.json"
     if p.exists():
         try:
             return json.loads(p.read_text(encoding="utf-8"))
@@ -98,6 +100,14 @@ NUDGE_MIN_GAP_MIN = int(_get("nudge_min_gap_min", "MACHINE_NUDGE_GAP", 90))
 NUDGE_LLM = _get("nudge_llm", "HUNCH_NUDGE_LLM", "gemini")
 GEMINI_BIN = _get("gemini_bin", "HUNCH_GEMINI_BIN", "gemini")
 GEMINI_MODEL = _get("gemini_model", "HUNCH_GEMINI_MODEL", "gemini-2.5-flash")
+
+# ---- semantische embeddings (gemini-embedding-001 via Google-OAuth/Vertex, KEIN API-key) ----
+# macht die fokus-/relevanz-erkennung schlauer: versteht bedeutung, nich nur exakte woerter.
+SEMANTIC_ON = str(_get("semantic_on", "HUNCH_SEMANTIC", "1")).lower() not in ("0", "false", "off", "")
+EMBED_MODEL = _get("embed_model", "HUNCH_EMBED_MODEL", "gemini-embedding-001")
+EMBED_DIM = int(_get("embed_dim", "HUNCH_EMBED_DIM", 768))
+GCP_PROJECT = _get("gcp_project", "HUNCH_GCP_PROJECT", "") or ""  # leer -> GOOGLE_CLOUD_PROJECT env / ADC-default
+GCP_LOCATION = _get("gcp_location", "HUNCH_GCP_LOCATION", "us-central1")
 CLAUDE_BIN = _get("claude_bin", "MACHINE_CLAUDE_BIN", "claude")
 NUDGE_MODEL = _get("nudge_model", "MACHINE_NUDGE_MODEL", "claude-sonnet-4-6")
 
@@ -111,6 +121,8 @@ NUDGE_CHANNEL = _get("nudge_channel", "HUNCH_NUDGE_CHANNEL", "telegram")
 _aip = _get("agent_inbox_path", "HUNCH_AGENT_INBOX",
             os.path.join(os.path.expanduser("~"), ".claude", "hunch-feed.jsonl"))
 AGENT_INBOX_PATH = pathlib.Path(_expand(_aip))
+# ---- NUDGE_TARGET="tmux": tmux-session-name des agenten, in den der impuls direkt getippt wird ----
+TMUX_TARGET = _get("tmux_target", "HUNCH_TMUX_TARGET", None)
 
 # ---- runtime / scheduler ----
 BRAIN_EVERY_MIN = int(_get("brain_every_min", "MACHINE_BRAIN_EVERY", 30))
