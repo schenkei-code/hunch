@@ -4,7 +4,7 @@
 NUDGE_TARGET: an den AGENT (inbox, ausfuehrlich, agent entscheidet selbst) oder an den USER ueber
 den konfigurierten CHANNEL (default telegram, kurz). Faellt nie aus: LLM-fail -> template-fallback.
 Brain NUDGED nur — keine eigenmaechtigen aktionen (laut briefing)."""
-import sys, time, json, subprocess, datetime, urllib.request, urllib.parse
+import sys, time, json, subprocess, datetime, urllib.request, urllib.parse, re
 from . import config, store, detect, baseline, graph
 
 # ---------- qualitaets-gate ----------
@@ -146,11 +146,19 @@ def deliver_to_tmux(text):
     agent, ohne umweg ueber inbox/channel. config.TMUX_TARGET = tmux-session-name des agenten.
     Text wird auf eine zeile reduziert (kein vorzeitiges Enter) + als literal gesendet, dann Enter."""
     sess = config.TMUX_TARGET
-    if not sess:
-        return False, "kein TMUX_TARGET gesetzt"
+    # session-name strikt validieren (operator-gesetzt, aber gegen arg-injection absichern)
+    if not sess or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", sess) or sess.startswith("-"):
+        return False, "ungueltiges/leeres TMUX_TARGET"
     try:
-        msg = "[Hunch] " + " ".join((text or "").split())
-        subprocess.run(["tmux", "send-keys", "-t", sess, "-l", msg], check=True, timeout=10)
+        # der nudge-text ist semi-untrusted (aus ingesteten daten ableitbar) und geht als
+        # KEYSTROKES + Enter in eine live-session -> auf eine zeile + NUR druckbare zeichen
+        # (keine control-/escape-sequenzen, keine eingebetteten newlines = keine mehrfach-kommandos).
+        clean = "".join(c for c in " ".join((text or "").split()) if c.isprintable())[:1500]
+        if not clean:
+            return False, "leerer nudge"
+        msg = "[Hunch] " + clean
+        # "--" beendet die options -> msg kann nicht als flag interpretiert werden; -l = literal
+        subprocess.run(["tmux", "send-keys", "-t", sess, "-l", "--", msg], check=True, timeout=10)
         subprocess.run(["tmux", "send-keys", "-t", sess, "Enter"], check=True, timeout=10)
         return True, f"tmux:{sess}"
     except Exception as e:
